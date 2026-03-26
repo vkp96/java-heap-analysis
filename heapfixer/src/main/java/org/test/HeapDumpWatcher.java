@@ -1,5 +1,8 @@
 package org.test;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
@@ -15,6 +18,7 @@ import java.util.concurrent.TimeUnit;
  *   // ... when done: watcher.stop();
  */
 public class HeapDumpWatcher implements AutoCloseable {
+    private static final Logger LOGGER = LoggerFactory.getLogger(HeapDumpWatcher.class);
     private final Path dir;
     private final WatchService watcher;
     private final Thread thread;
@@ -26,6 +30,7 @@ public class HeapDumpWatcher implements AutoCloseable {
 
     public HeapDumpWatcher(Path dir) throws IOException {
         this.dir = dir.toAbsolutePath().normalize();
+        LOGGER.info("checking  dir: {}", this.dir);
         if (!Files.exists(this.dir)) {
             Files.createDirectories(this.dir);
         }
@@ -82,8 +87,7 @@ public class HeapDumpWatcher implements AutoCloseable {
                     try {
                         onHeapDumpCreated(fullPath.toFile());
                     } catch (Exception ex) {
-                        System.err.println("Error handling heap dump: " + ex.getMessage());
-                        ex.printStackTrace();
+                        LOGGER.error("Error handling heap dump: {}", ex.getMessage(), ex);
                     }
                 }
             }
@@ -100,7 +104,7 @@ public class HeapDumpWatcher implements AutoCloseable {
      * By default this prints the path as a placeholder action.
      */
     protected void onHeapDumpCreated(File heapDumpFile) {
-        System.out.println("Heap dump detected: " + heapDumpFile.getAbsolutePath());
+        LOGGER.info("Heap dump detected: {}", heapDumpFile.getAbsolutePath());
         // Placeholder: add your processing here (upload, analyze, move, etc.)
     }
 
@@ -119,7 +123,7 @@ public class HeapDumpWatcher implements AutoCloseable {
                     break;
                 }
                 prev = size;
-                TimeUnit.MILLISECONDS.sleep(30000);
+                TimeUnit.MILLISECONDS.sleep(300);
             }
         } catch (Exception ignored) {
         }
@@ -137,13 +141,13 @@ public class HeapDumpWatcher implements AutoCloseable {
      */
     public static void main(String[] args) {
         String dirArg = (args != null && args.length > 0 && args[0] != null && !args[0].isEmpty()) ? args[0] : "./heapdumps";
-        System.out.println("Starting HeapDumpWatcher for directory: " + dirArg);
+        LOGGER.info("Starting HeapDumpWatcher for directory: {}", dirArg);
 
         final HeapDumpWatcher watcher;
         try {
             watcher = new HeapDumpWatcher(dirArg);
         } catch (IOException e) {
-            System.err.println("Failed to create HeapDumpWatcher for '" + dirArg + "': " + e.getMessage());
+            LOGGER.error("Failed to create HeapDumpWatcher for '{}': {}", dirArg, e.getMessage(), e);
             return;
         }
 
@@ -151,7 +155,7 @@ public class HeapDumpWatcher implements AutoCloseable {
 
         // Ensure watcher is stopped on JVM shutdown
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            System.out.println("Shutdown requested, stopping HeapDumpWatcher...");
+            LOGGER.info("Shutdown requested, stopping HeapDumpWatcher...");
             watcher.stop();
         }));
 

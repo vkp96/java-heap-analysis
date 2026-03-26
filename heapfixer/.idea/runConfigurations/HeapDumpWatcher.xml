@@ -2,7 +2,7 @@
   <configuration default="false" name="HeapDumpWatcher" type="Application" factoryName="Application" nameIsGenerated="true">
     <option name="MAIN_CLASS_NAME" value="org.test.HeapDumpWatcher" />
     <module name="heapfixer.main" />
-    <option name="PROGRAM_PARAMETERS" value="D:\Project\Automatic Heap Dump analysis\java-heap-oom\heapdumps" />
+    <option name="PROGRAM_PARAMETERS" value="../heapdumps" />
     <option name="WORKING_DIRECTORY" value="$MODULE_WORKING_DIR$" />
     <extension name="coverage">
       <pattern>

@@ -1,10 +1,15 @@
 package org.test;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 //TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
 // click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
 public class HeapDumper {
+    private static final Logger LOGGER = LoggerFactory.getLogger(HeapDumper.class);
+
     public static void main(String[] args) {
-        System.out.println("Starting heap allocation test. This program will retain allocated byte[] chunks until the JVM runs out of heap.");
+        LOGGER.info("Starting heap allocation test. This program will retain allocated byte[] chunks until the JVM runs out of heap.");
 
         // Keep references to the arrays so they are not garbage-collected
         java.util.List<byte[]> list = new java.util.ArrayList<>();
@@ -20,12 +25,11 @@ public class HeapDumper {
 
                 // Print progress occasionally
                 if (allocatedMb % 16 == 0) {
-                    System.out.println("Allocated approximately " + allocatedMb + " MB");
+                    LOGGER.info("Allocated approximately {} MB", allocatedMb);
                 }
             }
         } catch (OutOfMemoryError oom) {
-            System.err.println("OutOfMemoryError: allocated approx " + allocatedMb + " MB before failure");
-            oom.printStackTrace();
+            LOGGER.error("OutOfMemoryError: allocated approx {} MB before failure", allocatedMb, oom);
             // rethrow so the process terminates with an error
             throw oom;
         }
