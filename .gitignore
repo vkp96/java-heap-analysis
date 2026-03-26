@@ -1,24 +1,41 @@
-# Compiled class file
-*.class
-
-# Log file
-*.log
-
-# BlueJ files
-*.ctxt
-
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
-
-# Package Files #
-*.jar
-*.war
-*.nar
-*.ear
-*.zip
-*.tar.gz
-*.rar
-
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
-hs_err_pid*
-replay_pid*
+heapfixer/build
+heapfixer/.gradle
+heapfixer/out
+heapdumps/*
+!heapdumps/.gitkeep
+heapfixer/.idea/AndroidProjectSystem.xml
+heapfixer/.idea/copilot.data.migration.ask2agent.xml
+heapfixer/.idea/vcs.xml
+heapfixer/.idea/gradle.xml
+heapfixer/.idea/libraries/
+heapfixer/.idea/artifacts/
+heapfixer/.idea/misc.xml
+heapfixer/.idea/modules.xml
+idea/misc.xml
+.idea/modules.xml
+.idea/workspace.xml
+.idea/shelf/
+.idea/httpRequests/
+.idea/queries/
+.idea/dataSources/
+.idea/dataSources.local.xml
+.idea/AndroidProjectSystem.xml
+.idea/gradle.xml
+.idea/vcs.xml
+.idea/copilot.data.migration.ask2agent.xml
+.idea/**/misc.xml
+.idea/**/modules.xml
+.idea/**/workspace.xml
+.idea/**/shelf/
+.idea/**/httpRequests/
+.idea/**/queries/
+.idea/**/dataSources/
+.idea/**/dataSources.local.xml
+.idea/**/AndroidProjectSystem.xml
+.idea/**/copilot.data.migration.ask2agent.xml
+.idea/**/vcs.xml
+.idea/**/gradle.xml
+.idea/**/libraries/
+.idea/**/artifacts/
+.idea/**/dictionaries/
+.idea/**/inspectionProfiles/
