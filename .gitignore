@@ -2,7 +2,7 @@ heapfixer/build
 heapfixer/.gradle
 heapfixer/out
 heapdumps/*
-!heapdumps/.gitkeep
+!heapdumps/java_pid20148.hprof
 heapfixer/.idea/AndroidProjectSystem.xml
 heapfixer/.idea/copilot.data.migration.ask2agent.xml
 heapfixer/.idea/vcs.xml

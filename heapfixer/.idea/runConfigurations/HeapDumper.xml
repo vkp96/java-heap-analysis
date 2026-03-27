@@ -2,7 +2,7 @@
   <configuration default="false" name="HeapDumper" type="Application" factoryName="Application" nameIsGenerated="true">
     <option name="MAIN_CLASS_NAME" value="org.test.HeapDumper" />
     <module name="heapfixer.main" />
-    <option name="VM_PARAMETERS" value="-Xmx128m -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=../heapdumps" />
+    <option name="VM_PARAMETERS" value="-Xmx32m -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=../heapdumps" />
     <option name="WORKING_DIRECTORY" value="$MODULE_WORKING_DIR$" />
     <extension name="coverage">
       <pattern>
