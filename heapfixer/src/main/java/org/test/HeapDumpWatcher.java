@@ -23,12 +23,25 @@ public class HeapDumpWatcher implements AutoCloseable {
     private final WatchService watcher;
     private final Thread thread;
     private volatile boolean running = false;
+    // Optional MAT tool path and report destination directory. If null, MAT extraction is skipped
+    private final Path matToolPath;
+    private final Path reportDestDir;
 
     public HeapDumpWatcher(String path) throws IOException {
         this(Paths.get(path));
     }
 
     public HeapDumpWatcher(Path dir) throws IOException {
+        this(dir, null, null);
+    }
+
+    /**
+     * Create a watcher and optionally configure MAT extractor paths.
+     * @param dir directory to watch for heap dumps
+     * @param reportDestDir destination directory where MAT reports/zip will be written (may be null)
+     * @param matToolPath path to MAT installation or launcher (may be null)
+     */
+    public HeapDumpWatcher(Path dir, Path reportDestDir, Path matToolPath) throws IOException {
         this.dir = dir.toAbsolutePath().normalize();
         LOGGER.info("checking  dir: {}", this.dir);
         if (!Files.exists(this.dir)) {
@@ -38,6 +51,11 @@ public class HeapDumpWatcher implements AutoCloseable {
         this.dir.register(watcher, StandardWatchEventKinds.ENTRY_CREATE);
         this.thread = new Thread(this::processEvents, "HeapDumpWatcher-Thread");
         this.thread.setDaemon(true);
+        this.matToolPath = matToolPath != null ? matToolPath.toAbsolutePath().normalize() : null;
+        this.reportDestDir = reportDestDir != null ? reportDestDir.toAbsolutePath().normalize() : null;
+        if (this.reportDestDir != null && !Files.exists(this.reportDestDir)) {
+            Files.createDirectories(this.reportDestDir);
+        }
     }
 
     public Path getDirectory() {
@@ -105,7 +123,33 @@ public class HeapDumpWatcher implements AutoCloseable {
      */
     protected void onHeapDumpCreated(File heapDumpFile) {
         LOGGER.info("Heap dump detected: {}", heapDumpFile.getAbsolutePath());
-        // Placeholder: add your processing here (upload, analyze, move, etc.)
+
+        // Determine MAT tool path: prefer configured value, otherwise fallback to MAT_TOOL_PATH env var
+        Path matPath = this.matToolPath;
+        if (matPath == null) {
+            String env = System.getenv("MAT_TOOL_PATH");
+            if (env != null && !env.isBlank()) {
+                matPath = Paths.get(env).toAbsolutePath().normalize();
+                LOGGER.info("Using MAT_TOOL_PATH from environment: {}", matPath);
+            }
+        }
+
+        // Determine destination directory for reports: prefer configured value, otherwise default to ./reports
+        Path dest = this.reportDestDir != null ? this.reportDestDir : Paths.get("./reports").toAbsolutePath().normalize();
+
+        if (matPath == null) {
+            LOGGER.info("MAT tool path not configured; skipping MAT extraction. Set MAT_TOOL_PATH env var or use the constructor that accepts a matToolPath.");
+            return;
+        }
+
+        try {
+            LOGGER.info("Calling MATHeapInfoExtractor for heap file {} (MAT: {}, dest: {})",
+                    heapDumpFile.getAbsolutePath(), matPath, dest);
+            Path zip = MATHeapInfoExtractor.extractHeapReport(heapDumpFile.toPath(), matPath, dest);
+            LOGGER.info("MAT report created: {}", zip.toAbsolutePath());
+        } catch (Exception e) {
+            LOGGER.error("Failed to extract MAT report for {}: {}", heapDumpFile.getAbsolutePath(), e.getMessage(), e);
+        }
     }
 
     private void waitForFileStable(Path file) {
@@ -123,7 +167,7 @@ public class HeapDumpWatcher implements AutoCloseable {
                     break;
                 }
                 prev = size;
-                TimeUnit.MILLISECONDS.sleep(300);
+                TimeUnit.MILLISECONDS.sleep(10000);
             }
         } catch (Exception ignored) {
         }
@@ -140,14 +184,23 @@ public class HeapDumpWatcher implements AutoCloseable {
      * If no path is provided, "./heapdumps" is used.
      */
     public static void main(String[] args) {
-        String dirArg = (args != null && args.length > 0 && args[0] != null && !args[0].isEmpty()) ? args[0] : "./heapdumps";
-        LOGGER.info("Starting HeapDumpWatcher for directory: {}", dirArg);
+        // Accept up to three args: [watchDir] [reportDestDir] [matToolPath]
+        String watchArg = (args != null && args.length > 0 && args[0] != null && !args[0].isEmpty()) ? args[0] : "./heapdumps";
+        String reportArg = (args != null && args.length > 1 && args[1] != null && !args[1].isEmpty()) ? args[1] : null;
+        String matArg = (args != null && args.length > 2 && args[2] != null && !args[2].isEmpty()) ? args[2] : null;
+
+        // Normalize to absolute paths
+        Path watchDir = Paths.get(watchArg).toAbsolutePath().normalize();
+        Path reportDir = reportArg != null ? Paths.get(reportArg).toAbsolutePath().normalize() : null;
+        Path matTool = matArg != null ? Paths.get(matArg).toAbsolutePath().normalize() : null;
+
+        LOGGER.info("Starting HeapDumpWatcher with watchDir={}, reportDir={}, matTool={}", watchDir, reportDir, matTool);
 
         final HeapDumpWatcher watcher;
         try {
-            watcher = new HeapDumpWatcher(dirArg);
+            watcher = new HeapDumpWatcher(watchDir, reportDir, matTool);
         } catch (IOException e) {
-            LOGGER.error("Failed to create HeapDumpWatcher for '{}': {}", dirArg, e.getMessage(), e);
+            LOGGER.error("Failed to create HeapDumpWatcher for '{}': {}", watchDir, e.getMessage(), e);
             return;
         }
 

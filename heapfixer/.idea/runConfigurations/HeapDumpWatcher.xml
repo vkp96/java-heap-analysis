@@ -1,8 +1,11 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="HeapDumpWatcher" type="Application" factoryName="Application" nameIsGenerated="true">
+    <envs>
+      <env name="MAT_TOOL_PATH" value="D:\Softwares\MemoryAnalyzer\mat" />
+    </envs>
     <option name="MAIN_CLASS_NAME" value="org.test.HeapDumpWatcher" />
     <module name="heapfixer.main" />
-    <option name="PROGRAM_PARAMETERS" value="../heapdumps" />
+    <option name="PROGRAM_PARAMETERS" value="../heapdumps ../heapdumps D:\Softwares\MemoryAnalyzer\mat" />
     <option name="WORKING_DIRECTORY" value="$MODULE_WORKING_DIR$" />
     <extension name="coverage">
       <pattern>
