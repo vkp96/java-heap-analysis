@@ -1,0 +1,76 @@
+{
+  "heap_dump_path": "D:\\Project\\AutomaticHeapDumpAnalysis\\java-heap-analysis\\heapdumps\\java_pid30460\\java_pid30460.hprof",
+  "analyzed_at": "2026-03-28T13:25:44.034211500Z",
+  "summary": "MAT identifies a single large retained object graph: an ArrayList and its backing java.lang.Object[] together retain ~15.73 MB (≈94.84% of used heap). The retained graph is rooted in a local variable of the main thread and the allocation site is org.test.HeapDumper.main (HeapDumper.java:23). This indicates test/application code in org.test.HeapDumper.main is accumulating data in an in-memory collection and preventing it from being GC'd.",
+  "estimated_leak_size_mb": 15.01,
+  "confidence": "HIGH",
+  "top_retained_objects": [
+    {
+      "class_name": "java.util.ArrayList",
+      "instance_count": 1,
+      "retained_heap_bytes": 15728984,
+      "retained_heap_pct": 94.84,
+      "is_suspect": true,
+      "agent_note": "Flagged by MAT as a leak suspect; retains the large backing Object[] referenced from HeapDumper.main."
+    },
+    {
+      "class_name": "java.lang.Object[]",
+      "instance_count": 1,
+      "retained_heap_bytes": 15728960,
+      "retained_heap_pct": 94.84,
+      "is_suspect": true,
+      "agent_note": "Backing array for the ArrayList; holds the bulk of retained bytes and is referenced from the main thread."
+    }
+  ],
+  "gc_root_chains": [
+    {
+      "chain_label": "Thread(main) → java.util.ArrayList → java.lang.Object[]",
+      "root_type": "Thread",
+      "root_object": "java.lang.Thread @ 0xff086450 (main)",
+      "reference_path": [
+        {
+          "from": "java.lang.Thread @ 0xff086450 (main)",
+          "via_field": "local variable (in HeapDumper.main)",
+          "to": "java.util.ArrayList @ 0xff000860"
+        },
+        {
+          "from": "java.util.ArrayList @ 0xff000860",
+          "via_field": "elementData (backing array)",
+          "to": "java.lang.Object[] (backing array)"
+        }
+      ],
+      "suspect_object": "java.lang.Object[] (backing array held by ArrayList)",
+      "retained_heap_bytes": 15729608
+    }
+  ],
+  "dominant_allocator_stacks": [
+    {
+      "allocator_method": "org.test.HeapDumper.main",
+      "object_count": 1,
+      "retained_heap_bytes": 15728960,
+      "stack_frames": [
+        "org.test.HeapDumper.main([Ljava/lang/String;)V (HeapDumper.java:23)"
+      ],
+      "leak_pattern": "Large object graph accumulated in a local variable (ArrayList backing array) within main thread."
+    }
+  ],
+  "root_cause": {
+    "description": "A large java.lang.Object[] (backing an ArrayList) is retained by a local variable in org.test.HeapDumper.main, preventing GC.",
+    "responsible_class": "org.test.HeapDumper",
+    "responsible_method": "main",
+    "leak_pattern_type": "LARGE_OBJECT_GRAPH",
+    "detailed_explanation": "The main thread retains a reference to an ArrayList whose backing array holds ~15.73 MB of objects. Because the reference is kept in a local (or otherwise long-lived) variable in org.test.HeapDumper.main, the garbage collector cannot reclaim the large object graph. MAT shows the relevant stack frame at HeapDumper.java:23, indicating the data structure is populated or held in main and never released.",
+    "code_search_keywords": [
+      "HeapDumper",
+      "main",
+      "ArrayList",
+      "elementData",
+      "HeapDumper.java:23"
+    ]
+  },
+  "remediation": [
+    "In org.test.HeapDumper.main - avoid accumulating the entire dataset in an in-memory ArrayList; process items streaming or write intermediate results to disk.",
+    "After processing, explicitly clear or null out the ArrayList (e.g., list.clear(); list = null;) so references are released and GC can reclaim the backing array.",
+    "If retention is intentional, consider using a bounded collection (e.g., EvictingQueue) or off-heap / disk-backed storage to limit heap usage; add tests to detect large-memory usage in CI."
+  ]
+}

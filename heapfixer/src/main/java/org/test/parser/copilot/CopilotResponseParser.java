@@ -1,7 +1,8 @@
-package org.test.copilot;
+package org.test.parser.copilot;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.test.AnalysisResult;
 
 import java.nio.file.*;
@@ -36,6 +37,37 @@ import java.util.List;
 public class CopilotResponseParser {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final Logger LOGGER = LoggerFactory.getLogger(CopilotResponseParser.class);
+
+    public static void main(String[] args) {
+        try {
+            if (args == null || args.length != 2) {
+                LOGGER.error("Usage: CopilotResponseParser <response-json-file-path> <analysis-result-output-json-file-path>");
+                System.exit(1);
+            }
+
+            Path inputPath = Path.of(args[0]).toAbsolutePath().normalize();
+            Path outputPath = Path.of(args[1]).toAbsolutePath().normalize();
+
+            LOGGER.info("Input response JSON path: {}", inputPath);
+            LOGGER.info("Output analysis JSON path: {}", outputPath);
+
+            LOGGER.info("Parsing response JSON file into AnalysisResult.");
+            AnalysisResult result = parseFile(inputPath);
+
+            Path parent = outputPath.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
+
+            LOGGER.info("Writing AnalysisResult JSON to {}.", outputPath);
+            Files.writeString(outputPath, result.toJson());
+            LOGGER.info("Successfully wrote AnalysisResult JSON to {}.", outputPath);
+        } catch (Exception e) {
+            LOGGER.error("Failed to parse Copilot response input.", e);
+            System.exit(1);
+        }
+    }
 
     // ── Public entry points ───────────────────────────────────────────────────
 
@@ -75,8 +107,7 @@ public class CopilotResponseParser {
         java.awt.datatransfer.Clipboard cb =
             java.awt.Toolkit.getDefaultToolkit().getSystemClipboard();
         String text = (String) cb.getData(java.awt.datatransfer.DataFlavor.stringFlavor);
-        System.out.println("[CopilotResponseParser] Read " + text.length()
-            + " chars from clipboard.");
+        LOGGER.info("Read {} chars from clipboard.", text.length());
         return parse(text);
     }
 
@@ -160,12 +191,11 @@ public class CopilotResponseParser {
             warnings.add("'confidence' is empty");
 
         if (!warnings.isEmpty()) {
-            System.out.println("[CopilotResponseParser] Validation warnings:");
-            warnings.forEach(w -> System.out.println("  ⚠ " + w));
-            System.out.println("  These fields will be null/empty in the AnalysisResult.\n" +
-                "  If critical data is missing, re-run the prompt with more report content.");
+            LOGGER.warn("Validation warnings:");
+            warnings.forEach(w -> LOGGER.warn("  ⚠ {}", w));
+            LOGGER.warn("These fields will be null/empty in the AnalysisResult. If critical data is missing, re-run the prompt with more report content.");
         } else {
-            System.out.println("[CopilotResponseParser] Validation passed — all key fields present.");
+            LOGGER.info("Validation passed — all key fields present.");
         }
     }
 

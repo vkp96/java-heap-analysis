@@ -1,4 +1,4 @@
-package org.test.claudeAPI;
+package org.test.parser.claude;
 
 import org.test.MATRunner;
 
@@ -98,12 +98,12 @@ public class MatReportExtractor {
 
         if (Files.exists(zip)) {
             log.info("Found leak suspects zip: {}", zip);
-            String content = readHtmlFromZip(zip, "leak_suspects.html");
+            String content = readHtmlFromZip(zip, "index.html");
             if (content != null) {
                 log.info("Read leak suspects content from zip ({} chars)", content.length());
                 return stripHtml(content);
             } else {
-                log.info("No leak_suspects.html entry found inside {}", zip);
+                log.info("No index.html entry found inside {}", zip);
             }
         } else {
             log.debug("Zip not found: {}", zip);
@@ -152,7 +152,7 @@ public class MatReportExtractor {
             log.debug("Checking candidate zip: {}", z);
             if (Files.exists(z)) {
                 log.info("Found candidate system overview zip: {}", z);
-                String c = readHtmlFromZip(z, "system_overview.html");
+                String c = readHtmlFromZip(z, "index.html");
                 if (c != null) {
                     log.info("Read system overview from {} ({} chars)", z, c.length());
                     return stripHtml(c);

@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Heap Dump Analysis Report - java_pid30460.hprof</title>
+  <style>
+	:root {
+	  --bg: #0b1020;
+	  --panel: #121a2b;
+	  --panel-2: #18233a;
+	  --text: #ecf2ff;
+	  --muted: #aab8d1;
+	  --border: #2b3957;
+	  --accent: #67b3ff;
+	  --danger: #ff6b81;
+	  --warn: #ffbf69;
+	  --ok: #5dd39e;
+	  --code: #8bd3ff;
+	  --shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+	}
+	* { box-sizing: border-box; }
+	html, body {
+	  margin: 0;
+	  padding: 0;
+	  background: linear-gradient(180deg, #08101d 0%, #0b1020 100%);
+	  color: var(--text);
+	  font-family: Inter, Segoe UI, Arial, sans-serif;
+	}
+	body {
+	  padding: 28px;
+	}
+	.page {
+	  max-width: 1180px;
+	  margin: 0 auto;
+	}
+	.hero {
+	  background: linear-gradient(135deg, #121a2b 0%, #0f1730 100%);
+	  border: 1px solid var(--border);
+	  border-radius: 18px;
+	  box-shadow: var(--shadow);
+	  padding: 28px;
+	  margin-bottom: 24px;
+	}
+	.eyebrow {
+	  color: var(--accent);
+	  text-transform: uppercase;
+	  letter-spacing: 0.12em;
+	  font-size: 12px;
+	  font-weight: 700;
+	  margin-bottom: 12px;
+	}
+	h1 {
+	  margin: 0 0 8px 0;
+	  font-size: 34px;
+	  line-height: 1.15;
+	}
+	.hero-subtitle {
+	  margin: 0;
+	  color: var(--muted);
+	  font-size: 16px;
+	  line-height: 1.6;
+	  max-width: 900px;
+	}
+	.hero-meta {
+	  display: flex;
+	  flex-wrap: wrap;
+	  gap: 12px;
+	  margin-top: 18px;
+	}
+	.pill {
+	  display: inline-flex;
+	  align-items: center;
+	  gap: 8px;
+	  padding: 8px 12px;
+	  border-radius: 999px;
+	  background: rgba(255,255,255,0.04);
+	  border: 1px solid var(--border);
+	  font-size: 13px;
+	  color: var(--muted);
+	}
+	.pill strong {
+	  color: var(--text);
+	}
+	.confidence-high { color: var(--ok); }
+	.confidence-medium { color: var(--warn); }
+	.confidence-low, .confidence-unknown { color: var(--danger); }
+	.grid {
+	  display: grid;
+	  grid-template-columns: repeat(12, 1fr);
+	  gap: 18px;
+	}
+	.section {
+	  grid-column: 1 / -1;
+	  background: var(--panel);
+	  border: 1px solid var(--border);
+	  border-radius: 16px;
+	  box-shadow: var(--shadow);
+	  padding: 22px;
+	}
+	.section h2 {
+	  margin: 0 0 16px 0;
+	  font-size: 22px;
+	}
+	.section p {
+	  color: var(--muted);
+	  line-height: 1.7;
+	}
+	.card-grid {
+	  display: grid;
+	  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	  gap: 14px;
+	}
+	.stat-card {
+	  background: var(--panel-2);
+	  border: 1px solid var(--border);
+	  border-radius: 14px;
+	  padding: 16px;
+	}
+	.stat-label {
+	  font-size: 12px;
+	  color: var(--muted);
+	  text-transform: uppercase;
+	  letter-spacing: 0.08em;
+	  margin-bottom: 8px;
+	}
+	.stat-value {
+	  font-size: 24px;
+	  font-weight: 700;
+	  color: var(--text);
+	  word-break: break-word;
+	}
+	.stat-sub {
+	  color: var(--muted);
+	  font-size: 13px;
+	  margin-top: 6px;
+	  line-height: 1.5;
+	}
+	.suspect-list, .stack-list, .chain-list, .remediation-list {
+	  display: flex;
+	  flex-direction: column;
+	  gap: 14px;
+	}
+	.item-card {
+	  background: var(--panel-2);
+	  border: 1px solid var(--border);
+	  border-radius: 14px;
+	  padding: 16px;
+	}
+	.item-header {
+	  display: flex;
+	  justify-content: space-between;
+	  gap: 12px;
+	  align-items: flex-start;
+	  flex-wrap: wrap;
+	  margin-bottom: 8px;
+	}
+	.item-title {
+	  font-size: 17px;
+	  font-weight: 700;
+	  color: var(--text);
+	  word-break: break-word;
+	}
+	.badge {
+	  border-radius: 999px;
+	  padding: 5px 10px;
+	  border: 1px solid var(--border);
+	  font-size: 12px;
+	  font-weight: 700;
+	  white-space: nowrap;
+	}
+	.badge-suspect {
+	  color: var(--danger);
+	  border-color: rgba(255, 107, 129, 0.5);
+	  background: rgba(255, 107, 129, 0.08);
+	}
+	.badge-normal {
+	  color: var(--accent);
+	  border-color: rgba(103, 179, 255, 0.4);
+	  background: rgba(103, 179, 255, 0.07);
+	}
+	.meta-row {
+	  display: flex;
+	  flex-wrap: wrap;
+	  gap: 10px 18px;
+	  margin: 10px 0;
+	}
+	.meta-row span {
+	  color: var(--muted);
+	  font-size: 13px;
+	}
+	.meta-row strong {
+	  color: var(--text);
+	}
+	.note {
+	  margin-top: 8px;
+	  padding: 12px 14px;
+	  background: rgba(103, 179, 255, 0.06);
+	  border-left: 3px solid var(--accent);
+	  border-radius: 10px;
+	  color: var(--muted);
+	  line-height: 1.6;
+	}
+	table {
+	  width: 100%;
+	  border-collapse: collapse;
+	  overflow: hidden;
+	  border-radius: 12px;
+	}
+	th, td {
+	  padding: 12px 10px;
+	  border-bottom: 1px solid var(--border);
+	  vertical-align: top;
+	  text-align: left;
+	}
+	th {
+	  color: var(--muted);
+	  font-size: 12px;
+	  text-transform: uppercase;
+	  letter-spacing: 0.08em;
+	  background: rgba(255,255,255,0.02);
+	}
+	td {
+	  color: var(--text);
+	  font-size: 14px;
+	}
+	.mono {
+	  font-family: Consolas, "Courier New", monospace;
+	  color: var(--code);
+	  word-break: break-word;
+	}
+	.chain-step {
+	  padding: 10px 0;
+	  border-top: 1px solid rgba(255,255,255,0.05);
+	}
+	.chain-step:first-child {
+	  border-top: none;
+	}
+	.stack-frames {
+	  margin-top: 12px;
+	  background: rgba(0,0,0,0.18);
+	  border: 1px solid var(--border);
+	  border-radius: 10px;
+	  padding: 12px;
+	}
+	.stack-frames li {
+	  margin: 6px 0 6px 18px;
+	  color: var(--muted);
+	}
+	.keywords {
+	  display: flex;
+	  flex-wrap: wrap;
+	  gap: 8px;
+	  margin-top: 12px;
+	}
+	.keyword {
+	  padding: 6px 10px;
+	  border-radius: 999px;
+	  background: rgba(139, 211, 255, 0.08);
+	  border: 1px solid rgba(139, 211, 255, 0.22);
+	  color: var(--code);
+	  font-size: 12px;
+	}
+	.remediation-list ol {
+	  margin: 0;
+	  padding-left: 22px;
+	}
+	.remediation-list li {
+	  margin: 10px 0;
+	  line-height: 1.7;
+	  color: var(--muted);
+	}
+	.footer {
+	  color: var(--muted);
+	  font-size: 12px;
+	  margin: 18px 0 8px 0;
+	  text-align: center;
+	}
+	@media (max-width: 720px) {
+	  body { padding: 14px; }
+	  .hero, .section { padding: 18px; }
+	  h1 { font-size: 28px; }
+	}
+  </style>
+</head>
+<body>
+  <div class="page">
+	<section class="hero">
+	  <div class="eyebrow">Java Heap Dump Analysis</div>
+	  <h1>Developer Report for <span class="mono">java_pid30460.hprof</span></h1>
+	  <p class="hero-subtitle">MAT identifies a single large retained object graph: an ArrayList and its backing java.lang.Object[] together retain ~15.73 MB (≈94.84% of used heap). The retained graph is rooted in a local variable of the main thread and the allocation site is org.test.HeapDumper.main (HeapDumper.java:23). This indicates test/application code in org.test.HeapDumper.main is accumulating data in an in-memory collection and preventing it from being GC&#39;d.</p>
+	  <div class="hero-meta">
+		<span class="pill"><strong>Confidence:</strong> <span class="confidence-high">HIGH</span></span>
+		<span class="pill"><strong>Leak Size:</strong> 15.01 MB</span>
+		<span class="pill"><strong>Analysis Time:</strong> 28 Mar 2026, 13:25:44 UTC</span>
+		<span class="pill"><strong>Source JSON:</strong> <span class="mono">D:\Project\AutomaticHeapDumpAnalysis\java-heap-analysis\heapfixer\src\main\resources\response.json</span></span>
+	  </div>
+	</section>
+
+	<section class="section">
+	  <h2>Heap Dump Overview</h2>
+	  <div class="card-grid">
+		<div class="stat-card">
+  <div class="stat-label">Heap dump path</div>
+  <div class="stat-value">D:\Project\AutomaticHeapDumpAnalysis\java-heap-analysis\heapdumps\java_pid30460\java_pid30460.hprof</div>
+  <div class="stat-sub">Original heap dump file analysed</div>
+</div>
+<div class="stat-card">
+  <div class="stat-label">Analysed at</div>
+  <div class="stat-value">28 Mar 2026, 13:25:44 UTC</div>
+  <div class="stat-sub">Timestamp from the structured analysis result</div>
+</div>
+<div class="stat-card">
+  <div class="stat-label">Estimated leak size</div>
+  <div class="stat-value">15.01 MB</div>
+  <div class="stat-sub">Estimated amount of retained heap tied to the leak</div>
+</div>
+<div class="stat-card">
+  <div class="stat-label">Confidence</div>
+  <div class="stat-value">HIGH</div>
+  <div class="stat-sub">How strong the automated diagnosis is</div>
+</div>
+<div class="stat-card">
+  <div class="stat-label">Top retained objects</div>
+  <div class="stat-value">2</div>
+  <div class="stat-sub">Number of retained object entries in the result</div>
+</div>
+<div class="stat-card">
+  <div class="stat-label">Leak suspects</div>
+  <div class="stat-value">2</div>
+  <div class="stat-sub">Objects explicitly flagged as suspects</div>
+</div>
+<div class="stat-card">
+  <div class="stat-label">GC root chains</div>
+  <div class="stat-value">1</div>
+  <div class="stat-sub">Root-to-suspect retention chains available</div>
+</div>
+<div class="stat-card">
+  <div class="stat-label">Allocator stacks</div>
+  <div class="stat-value">1</div>
+  <div class="stat-sub">Allocation hotspots captured in the analysis</div>
+</div>
+
+	  </div>
+	</section>
+
+	<section class="section">
+	  <h2>Leak Suspects and Top Retained Objects</h2>
+	  <table><thead><tr><th>Class</th><th>Instances</th><th>Retained Heap</th><th>Heap %%</th><th>Status</th><th>Developer Note</th></tr></thead><tbody><tr><td class="mono">java.util.ArrayList</td><td>1</td><td>15.00 MB</td><td>94.84%</td><td><span class="badge badge-suspect">Leak suspect</span></td><td>Flagged by MAT as a leak suspect; retains the large backing Object[] referenced from HeapDumper.main.</td></tr><tr><td class="mono">java.lang.Object[]</td><td>1</td><td>15.00 MB</td><td>94.84%</td><td><span class="badge badge-suspect">Leak suspect</span></td><td>Backing array for the ArrayList; holds the bulk of retained bytes and is referenced from the main thread.</td></tr></tbody></table>
+	</section>
+
+	<section class="section">
+	  <h2>GC Root Chains</h2>
+	  <div class="chain-list"><div class="item-card"><div class="item-header"><div class="item-title">Thread(main) → java.util.ArrayList → java.lang.Object[]</div><span class="badge badge-normal">Retained 15.00 MB</span></div><div class="meta-row"><span><strong>Root type:</strong> Thread</span><span><strong>Root object:</strong> <span class="mono">java.lang.Thread @ 0xff086450 (main)</span></span></div><div class="chain-step"><div><strong>From:</strong> <span class="mono">java.lang.Thread @ 0xff086450 (main)</span></div><div><strong>Via:</strong> <span class="mono">local variable (in HeapDumper.main)</span></div><div><strong>To:</strong> <span class="mono">java.util.ArrayList @ 0xff000860</span></div></div><div class="chain-step"><div><strong>From:</strong> <span class="mono">java.util.ArrayList @ 0xff000860</span></div><div><strong>Via:</strong> <span class="mono">elementData (backing array)</span></div><div><strong>To:</strong> <span class="mono">java.lang.Object[] (backing array)</span></div></div><div class="note"><strong>Suspect object:</strong> <span class="mono">java.lang.Object[] (backing array held by ArrayList)</span></div></div></div>
+	</section>
+
+	<section class="section">
+	  <h2>Allocation Hotspots</h2>
+	  <div class="stack-list"><div class="item-card"><div class="item-header"><div class="item-title mono">org.test.HeapDumper.main</div><span class="badge badge-normal">Retained 15.00 MB</span></div><div class="meta-row"><span><strong>Objects:</strong> 1</span></div><div class="note">Large object graph accumulated in a local variable (ArrayList backing array) within main thread.</div><div class="stack-frames"><strong>Stack frames</strong><ol><li class="mono">org.test.HeapDumper.main([Ljava/lang/String;)V (HeapDumper.java:23)</li></ol></div></div></div>
+	</section>
+
+	<section class="section">
+	  <h2>Root Cause Assessment</h2>
+	  <div class="item-card"><div class="item-title">A large java.lang.Object[] (backing an ArrayList) is retained by a local variable in org.test.HeapDumper.main, preventing GC.</div><div class="meta-row"><span><strong>Responsible class:</strong> <span class="mono">org.test.HeapDumper</span></span><span><strong>Method:</strong> <span class="mono">main</span></span><span><strong>Pattern:</strong> LARGE_OBJECT_GRAPH</span></span></div><p>The main thread retains a reference to an ArrayList whose backing array holds ~15.73 MB of objects. Because the reference is kept in a local (or otherwise long-lived) variable in org.test.HeapDumper.main, the garbage collector cannot reclaim the large object graph. MAT shows the relevant stack frame at HeapDumper.java:23, indicating the data structure is populated or held in main and never released.</p><div class="keywords"><span class="keyword">HeapDumper</span><span class="keyword">main</span><span class="keyword">ArrayList</span><span class="keyword">elementData</span><span class="keyword">HeapDumper.java:23</span></div></div>
+	</section>
+
+	<section class="section">
+	  <h2>Recommended Remediation</h2>
+	  <div class="remediation-list"><ol><li>In org.test.HeapDumper.main - avoid accumulating the entire dataset in an in-memory ArrayList; process items streaming or write intermediate results to disk.</li><li>After processing, explicitly clear or null out the ArrayList (e.g., list.clear(); list = null;) so references are released and GC can reclaim the backing array.</li><li>If retention is intentional, consider using a bounded collection (e.g., EvictingQueue) or off-heap / disk-backed storage to limit heap usage; add tests to detect large-memory usage in CI.</li></ol></div>
+	</section>
+
+	<div class="footer">Generated locally by ReportWriterCopilotAgent</div>
+  </div>
+</body>
+</html>

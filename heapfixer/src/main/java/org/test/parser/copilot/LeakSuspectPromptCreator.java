@@ -1,7 +1,7 @@
-package org.test.copilot;
+package org.test.parser.copilot;
 
 import org.test.AnalysisResult;
-import org.test.claudeAPI.MatReportExtractor;
+import org.test.parser.claude.MatReportExtractor;
 
 import java.nio.file.*;
 import java.time.Instant;
@@ -322,7 +322,7 @@ public class LeakSuspectPromptCreator {
 
     /**
      * Command-line entry point.
-     * Usage: java org.test.copilot.LeakSuspectPromptCreator <reportsDir> <heapDumpPath> [topN]
+     * Usage: java org.test.parser.copilot.LeakSuspectPromptCreator <reportsDir> <heapDumpPath> [topN]
      * - reportsDir   : directory containing MAT reports (will be normalized to absolute path)
      * - heapDumpPath  : path to the .hprof that was analyzed (kept as-given in the prompt)
      * - topN         : optional integer, number of top retained objects to include (default 10)
@@ -330,7 +330,7 @@ public class LeakSuspectPromptCreator {
     public static void main(String[] args) {
         try {
             if (args.length < 2 || args.length > 3) {
-                log.error("Usage: java org.test.copilot.LeakSuspectPromptCreator <reportsDir> <heapDumpPath> [topN]");
+                log.error("Usage: java org.test.parser.copilot.LeakSuspectPromptCreator <reportsDir> <heapDumpPath> [topN]");
                 System.exit(1);
             }
 

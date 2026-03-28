@@ -162,25 +162,36 @@ public class MATRunner {
         String execName = matExec.getFileName().toString().toLowerCase();
         // If the MAT distribution provides ParseHeapDump.bat/.sh, prefer invoking it in headless mode
         if (execName.contains("parseheapdump")) {
-            cmd.add(matExec.toString());
-            // Use headless launcher that accepts the heap file followed by report ids.
-            // Point to the copied heap in workDir and request multiple built-in reports.
-            cmd.add(heapCopyTarget.toString());
-            // Request suspects, overview and dominator tree reports (some ParseHeapDump launchers accept multiple report ids)
-            cmd.add("org.eclipse.mat.api:suspects");
-            cmd.add("org.eclipse.mat.api:overview");
-            cmd.add("org.eclipse.mat.api:dominators");
-            //cmd.add("-output");
-            //cmd.add(workDir.toString());
-        } else {
-            // Best-effort default arguments; some MAT installs use different application ids.
+            // Run via the launcher in headless mode, request HTML output and write to the workDir
             cmd.add(matExec.toString());
             cmd.add("-consoleLog");
             cmd.add("-application");
             cmd.add("org.eclipse.mat.api.parse");
             cmd.add(heapCopyTarget.toString());
+            // Request suspects, overview and dominator tree reports
+            cmd.add("org.eclipse.mat.api:suspects");
+            cmd.add("org.eclipse.mat.api:overview");
+            cmd.add("org.eclipse.mat.api:dominators");
+            // Ensure output directory and HTML format
             //cmd.add("-output");
-            //cmd.add(workDir.toString()+"/");
+            //cmd.add(workDir.toString());
+            cmd.add("-format");
+            cmd.add("html");
+        } else {
+            // Best-effort default arguments; some MAT installs use different application ids.
+            // Use the generic launcher invocation in headless mode and request HTML output
+            cmd.add(matExec.toString());
+            cmd.add("-consoleLog");
+            cmd.add("-application");
+            cmd.add("org.eclipse.mat.api.parse");
+            cmd.add(heapCopyTarget.toString());
+            cmd.add("org.eclipse.mat.api:suspects");
+            cmd.add("org.eclipse.mat.api:overview");
+            cmd.add("org.eclipse.mat.api:dominators");
+            cmd.add("-output");
+            cmd.add(workDir.toString() + "/");
+            cmd.add("-format");
+            cmd.add("html");
         }
         return cmd;
     }

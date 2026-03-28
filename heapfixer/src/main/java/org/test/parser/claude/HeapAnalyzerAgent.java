@@ -1,4 +1,4 @@
-package org.test.claudeAPI;
+package org.test.parser.claude;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
