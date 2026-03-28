@@ -30,9 +30,9 @@ import java.util.stream.Stream;
  *
  * This is a conservative helper: the MAT invocation is best-effort and there is a fallback so callers always get a zip artifact.
  */
-public class MATHeapInfoExtractor {
+public class MATRunner {
 
-    private static final Logger LOG = Logger.getLogger(MATHeapInfoExtractor.class.getName());
+    private static final Logger LOG = Logger.getLogger(MATRunner.class.getName());
 
     /**
      * Generate a heap report zip for the given heap dump.
@@ -187,7 +187,7 @@ public class MATHeapInfoExtractor {
 
     // ---------------------- helpers ------------------------------
 
-    private static String stripExtension(String s) {
+    public static String stripExtension(String s) {
         int idx = s.lastIndexOf('.');
         return (idx > 0) ? s.substring(0, idx) : s;
     }

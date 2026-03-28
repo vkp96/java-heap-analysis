@@ -1,9 +1,9 @@
-package org.test.claude.report;
+package org.test.claudeAPI.report;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.test.claude.AnalysisResult;
+import org.test.AnalysisResult;
 
 import java.net.URI;
 import java.net.http.*;

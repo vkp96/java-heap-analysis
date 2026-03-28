@@ -145,7 +145,7 @@ public class HeapDumpWatcher implements AutoCloseable {
         try {
             LOGGER.info("Calling MATHeapInfoExtractor for heap file {} (MAT: {}, dest: {})",
                     heapDumpFile.getAbsolutePath(), matPath, dest);
-            Path zip = MATHeapInfoExtractor.extractHeapReport(heapDumpFile.toPath(), matPath, dest);
+            Path zip = MATRunner.extractHeapReport(heapDumpFile.toPath(), matPath, dest);
             LOGGER.info("MAT report created: {}", zip.toAbsolutePath());
         } catch (Exception e) {
             LOGGER.error("Failed to extract MAT report for {}: {}", heapDumpFile.getAbsolutePath(), e.getMessage(), e);
