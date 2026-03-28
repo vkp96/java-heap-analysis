@@ -185,8 +185,8 @@ public class HeapDumpWatcher implements AutoCloseable {
      */
     public static void main(String[] args) {
         // Accept up to three args: [watchDir] [reportDestDir] [matToolPath]
-        String watchArg = (args != null && args.length > 0 && args[0] != null && !args[0].isEmpty()) ? args[0] : "./heapdumps";
-        String reportArg = (args != null && args.length > 1 && args[1] != null && !args[1].isEmpty()) ? args[1] : null;
+        String watchArg = (args != null && args.length > 0 && args[0] != null && !args[0].isEmpty()) ? args[0] : "../heapdumps";
+        String reportArg = (args != null && args.length > 1 && args[1] != null && !args[1].isEmpty()) ? args[1] : "../heapdumps";
         String matArg = (args != null && args.length > 2 && args[2] != null && !args[2].isEmpty()) ? args[2] : null;
 
         // Normalize to absolute paths

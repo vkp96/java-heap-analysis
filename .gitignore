@@ -1,6 +1,8 @@
 heapfixer/build
+heapfixer/bin
 heapfixer/.gradle
 heapfixer/out
+heapfixer/src/main/resources/*.key
 heapdumps/*
 !heapdumps/java_pid20148.hprof
 heapfixer/.idea/AndroidProjectSystem.xml

@@ -163,11 +163,13 @@ public class MATHeapInfoExtractor {
         // If the MAT distribution provides ParseHeapDump.bat/.sh, prefer invoking it in headless mode
         if (execName.contains("parseheapdump")) {
             cmd.add(matExec.toString());
-            // Use headless mode and explicit input/output parameters; point to the copied heap in workDir
-            //cmd.add("-headless");
-            //cmd.add("-input");
+            // Use headless launcher that accepts the heap file followed by report ids.
+            // Point to the copied heap in workDir and request multiple built-in reports.
             cmd.add(heapCopyTarget.toString());
+            // Request suspects, overview and dominator tree reports (some ParseHeapDump launchers accept multiple report ids)
             cmd.add("org.eclipse.mat.api:suspects");
+            cmd.add("org.eclipse.mat.api:overview");
+            cmd.add("org.eclipse.mat.api:dominators");
             //cmd.add("-output");
             //cmd.add(workDir.toString());
         } else {
