@@ -1,12 +1,12 @@
 package org.test.parser.copilot;
 
 import org.test.AnalysisResult;
-import org.test.parser.claude.MatReportExtractor;
 
 import java.nio.file.*;
 import java.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.test.MatReportExtractor;
 
 /**
  * LeakSuspectPromptCreator
