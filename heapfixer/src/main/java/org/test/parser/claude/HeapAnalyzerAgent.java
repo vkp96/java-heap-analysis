@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.test.AnalysisResult;
+import org.test.MatReportExtractor;
 
 import java.net.URI;
 import java.net.http.*;

@@ -1,6 +1,4 @@
-package org.test.parser.claude;
-
-import org.test.MATRunner;
+package org.test;
 
 import java.io.*;
 import java.nio.file.*;
@@ -12,12 +10,12 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Extracts structured text content from Eclipse MAT headless report output.
- *
+ *<p></p>
  * MAT headless generates a reports/ directory containing:
  *   - leak_suspects.zip  →  leak_suspects.html (primary suspect report)
  *   - system_overview/   →  system_overview.html
  *   - dominator_tree/    →  optional detailed dominator data
- *
+ *<p></p>
  * This class unzips, strips HTML tags, and segments the content into
  * named sections that the analyzer agent can reason over.
  */
