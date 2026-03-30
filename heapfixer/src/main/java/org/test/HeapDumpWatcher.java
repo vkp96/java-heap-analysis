@@ -2,6 +2,9 @@ package org.test;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.test.strategy.AnalysisStrategyFactory;
+import org.test.strategy.AnalysisStrategyType;
+import org.test.strategy.HeapAnalysisStrategy;
 
 import java.io.File;
 import java.io.IOException;
@@ -10,7 +13,9 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Watches a directory for newly created heap dump files (e.g. *.hprof) and invokes a
- * callback when a new heap dump is observed.
+ * callback when a new heap dump is observed. When configured with an
+ * {@link AnalyzerPipeline}, the watcher also kicks off MAT extraction followed by
+ * strategy-driven analysis into an {@link AnalysisResult} JSON artifact.
  *
  * Usage:
  *   HeapDumpWatcher watcher = new HeapDumpWatcher("./heapdumps");
@@ -26,13 +31,14 @@ public class HeapDumpWatcher implements AutoCloseable {
     // Optional MAT tool path and report destination directory. If null, MAT extraction is skipped
     private final Path matToolPath;
     private final Path reportDestDir;
+    private final AnalyzerPipeline analyzerPipeline;
 
     public HeapDumpWatcher(String path) throws IOException {
         this(Paths.get(path));
     }
 
     public HeapDumpWatcher(Path dir) throws IOException {
-        this(dir, null, null);
+        this(dir, null, null, null);
     }
 
     /**
@@ -42,6 +48,10 @@ public class HeapDumpWatcher implements AutoCloseable {
      * @param matToolPath path to MAT installation or launcher (may be null)
      */
     public HeapDumpWatcher(Path dir, Path reportDestDir, Path matToolPath) throws IOException {
+        this(dir, reportDestDir, matToolPath, null);
+    }
+
+    public HeapDumpWatcher(Path dir, Path reportDestDir, Path matToolPath, AnalyzerPipeline analyzerPipeline) throws IOException {
         this.dir = dir.toAbsolutePath().normalize();
         LOGGER.info("checking  dir: {}", this.dir);
         if (!Files.exists(this.dir)) {
@@ -53,6 +63,7 @@ public class HeapDumpWatcher implements AutoCloseable {
         this.thread.setDaemon(true);
         this.matToolPath = matToolPath != null ? matToolPath.toAbsolutePath().normalize() : null;
         this.reportDestDir = reportDestDir != null ? reportDestDir.toAbsolutePath().normalize() : null;
+        this.analyzerPipeline = analyzerPipeline;
         if (this.reportDestDir != null && !Files.exists(this.reportDestDir)) {
             Files.createDirectories(this.reportDestDir);
         }
@@ -147,8 +158,25 @@ public class HeapDumpWatcher implements AutoCloseable {
                     heapDumpFile.getAbsolutePath(), matPath, dest);
             Path zip = MATRunner.extractHeapReport(heapDumpFile.toPath(), matPath, dest);
             LOGGER.info("MAT report created: {}", zip.toAbsolutePath());
+
+            if (analyzerPipeline == null) {
+                LOGGER.info("AnalyzerPipeline not configured; MAT extraction completed but no analysis strategy will be run.");
+                return;
+            }
+
+            Path matReportsDir = dest.resolve(MATRunner.stripExtension(heapDumpFile.getName())).toAbsolutePath().normalize();
+            Path outputJson = matReportsDir.resolve("analysis_result.json");
+            LOGGER.info("Invoking AnalyzerPipeline with MAT reports dir {} and output file {}", matReportsDir, outputJson);
+            AnalysisResult result = analyzerPipeline.runAnalysisAndSave(
+                    heapDumpFile.getAbsolutePath(),
+                    matReportsDir,
+                    outputJson);
+            LOGGER.info("AnalyzerPipeline completed for {}. Confidence={}, output={}",
+                    heapDumpFile.getAbsolutePath(),
+                    result.confidence,
+                    outputJson.toAbsolutePath());
         } catch (Exception e) {
-            LOGGER.error("Failed to extract MAT report for {}: {}", heapDumpFile.getAbsolutePath(), e.getMessage(), e);
+            LOGGER.error("Failed to extract/analyze heap dump for {}: {}", heapDumpFile.getAbsolutePath(), e.getMessage(), e);
         }
     }
 
@@ -180,25 +208,44 @@ public class HeapDumpWatcher implements AutoCloseable {
 
     /**
      * Simple CLI entrypoint so this watcher can be run standalone.
-     * Usage: java org.test.HeapDumpWatcher [path]
-     * If no path is provided, "./heapdumps" is used.
+     * Usage: java org.test.HeapDumpWatcher [watchDir] [reportDestDir] [matToolPath] [strategy]
+     * If strategy is omitted, {@code ANALYSIS_STRATEGY} is used.
      */
     public static void main(String[] args) {
-        // Accept up to three args: [watchDir] [reportDestDir] [matToolPath]
+        // Accept up to four args: [watchDir] [reportDestDir] [matToolPath] [strategy]
         String watchArg = (args != null && args.length > 0 && args[0] != null && !args[0].isEmpty()) ? args[0] : "../heapdumps";
         String reportArg = (args != null && args.length > 1 && args[1] != null && !args[1].isEmpty()) ? args[1] : "../heapdumps";
         String matArg = (args != null && args.length > 2 && args[2] != null && !args[2].isEmpty()) ? args[2] : null;
+        String strategyArg = (args != null && args.length > 3 && args[3] != null && !args[3].isEmpty()) ? args[3] : null;
 
         // Normalize to absolute paths
         Path watchDir = Paths.get(watchArg).toAbsolutePath().normalize();
         Path reportDir = reportArg != null ? Paths.get(reportArg).toAbsolutePath().normalize() : null;
         Path matTool = matArg != null ? Paths.get(matArg).toAbsolutePath().normalize() : null;
+        AnalysisStrategyType strategyType = strategyArg != null
+                ? AnalysisStrategyType.fromString(strategyArg)
+                : AnalysisStrategyFactory.resolveType();
+        Path promptWorkDir = reportDir != null
+                ? reportDir.resolve("copilot-work")
+                : watchDir.resolve("copilot-work");
 
-        LOGGER.info("Starting HeapDumpWatcher with watchDir={}, reportDir={}, matTool={}", watchDir, reportDir, matTool);
+        LOGGER.info("Starting HeapDumpWatcher with watchDir={}, reportDir={}, matTool={}, strategy={}, promptWorkDir={}",
+                watchDir, reportDir, matTool, strategyType, promptWorkDir);
+
+        final HeapAnalysisStrategy strategy;
+        final AnalyzerPipeline analyzerPipeline;
+        try {
+            strategy = AnalysisStrategyFactory.create(strategyType, promptWorkDir);
+            analyzerPipeline = new AnalyzerPipeline(strategy);
+            LOGGER.info("Configured AnalyzerPipeline with strategy '{}'", strategy.strategyName());
+        } catch (Exception e) {
+            LOGGER.error("Failed to configure analysis strategy {}: {}", strategyType, e.getMessage(), e);
+            return;
+        }
 
         final HeapDumpWatcher watcher;
         try {
-            watcher = new HeapDumpWatcher(watchDir, reportDir, matTool);
+            watcher = new HeapDumpWatcher(watchDir, reportDir, matTool, analyzerPipeline);
         } catch (IOException e) {
             LOGGER.error("Failed to create HeapDumpWatcher for '{}': {}", watchDir, e.getMessage(), e);
             return;

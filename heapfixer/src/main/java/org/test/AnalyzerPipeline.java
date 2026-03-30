@@ -1,33 +1,52 @@
 package org.test;
 
-import org.test.parser.claude.HeapAnalyzerAgent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.test.strategy.AnalysisStrategyFactory;
+import org.test.strategy.AnalysisStrategyType;
+import org.test.strategy.ClaudeAnalysisStrategy;
+import org.test.strategy.HeapAnalysisStrategy;
 
-import java.nio.file.*;
-import java.util.logging.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 /**
  * AnalyzerPipeline
- * Ties the watcher service → MAT report extractor → Claude agent → JSON output.
- * Call this from your existing watcher service once MAT has finished:
- *   AnalyzerPipeline pipeline = new AnalyzerPipeline(System.getenv("ANTHROPIC_API_KEY"));
+ * Ties MAT report extraction to a pluggable {@link HeapAnalysisStrategy} and
+ * writes the final {@link AnalysisResult} JSON output.
+ * Call this from your watcher service once MAT has finished:
+ *   AnalyzerPipeline pipeline = new AnalyzerPipeline(strategy);
  *   AnalysisResult   result   = pipeline.runAnalysis(heapDumpPath, matReportsDir);
- *   System.out.println(result.toJson());
+ *   // persist or forward result
  * Or run standalone:
- *   java AnalyzerPipeline /path/to/dump.hprof /path/to/mat/reports
+ *   java AnalyzerPipeline /path/to/dump.hprof /path/to/mat/reports [output.json] [strategy]
  */
 public class AnalyzerPipeline {
 
-    private static final Logger LOG = Logger.getLogger(AnalyzerPipeline.class.getName());
+    private static final Logger LOG = LoggerFactory.getLogger(AnalyzerPipeline.class);
 
     /** How many top retained-object types to surface in the output. */
-    private static final int TOP_N = 10;
+    private static final int DEFAULT_TOP_N = 10;
 
-    private final HeapAnalyzerAgent agent;
+    private final HeapAnalysisStrategy strategy;
     private final MatReportExtractor extractor;
+    private final int topN;
 
-    public AnalyzerPipeline(String anthropicApiKey) {
-        this.agent     = new HeapAnalyzerAgent(anthropicApiKey);
+    public AnalyzerPipeline(HeapAnalysisStrategy strategy) {
+        this(strategy, DEFAULT_TOP_N);
+    }
+
+    public AnalyzerPipeline(HeapAnalysisStrategy strategy, int topN) {
+        this.strategy  = strategy;
         this.extractor = new MatReportExtractor();
+        this.topN      = topN > 0 ? topN : DEFAULT_TOP_N;
+    }
+
+    /**
+     * Backward-compatible constructor for legacy Claude-only callers.
+     */
+    public AnalyzerPipeline(String anthropicApiKey) {
+        this(new ClaudeAnalysisStrategy(anthropicApiKey));
     }
 
     // -------------------------------------------------------------------------
@@ -44,31 +63,35 @@ public class AnalyzerPipeline {
     public AnalysisResult runAnalysis(String heapDumpPath, Path matReportsDir)
             throws Exception {
 
-        LOG.info("=== Heap Dump Analysis Pipeline Starting ===");
-        LOG.info("Heap dump : " + heapDumpPath);
-        LOG.info("MAT dir   : " + matReportsDir);
+        Path normalizedReportsDir = matReportsDir.toAbsolutePath().normalize();
 
-        if (!Files.isDirectory(matReportsDir)) {
+        LOG.info("=== Heap Dump Analysis Pipeline Starting ===");
+        LOG.info("Heap dump      : {}", heapDumpPath);
+        LOG.info("MAT dir        : {}", normalizedReportsDir);
+        LOG.info("Strategy       : {}", strategy.strategyName());
+        LOG.info("Top N objects  : {}", topN);
+
+        if (!Files.isDirectory(normalizedReportsDir)) {
             throw new IllegalArgumentException(
-                "MAT reports directory does not exist: " + matReportsDir);
+                "MAT reports directory does not exist: " + normalizedReportsDir);
         }
 
         LOG.info("Step 1/3 – Extracting MAT report content…");
         MatReportExtractor.MatReport report =
-            extractor.extract(matReportsDir, heapDumpPath);
+            extractor.extract(normalizedReportsDir, heapDumpPath);
 
-        LOG.info("  Suspect blocks found : " + report.suspectBlocks.size());
-        LOG.info("  Context size (chars) : " + report.toPromptContext().length());
+        LOG.info("  Suspect blocks found : {}", report.suspectBlocks.size());
+        LOG.info("  Context size (chars) : {}", report.toPromptContext().length());
 
-        LOG.info("Step 2/3 – Running AI analysis (two-phase)…");
-        AnalysisResult result = agent.analyze(report, TOP_N);
+        LOG.info("Step 2/3 – Running analysis strategy '{}'…", strategy.strategyName());
+        AnalysisResult result = strategy.analyze(report, topN);
 
         LOG.info("Step 3/3 – Analysis complete.");
-        LOG.info("  Confidence           : " + result.confidence);
-        LOG.info("  Root cause type      : " +
-            (result.rootCause != null ? result.rootCause.leakPatternType : "unknown"));
-        LOG.info("  Top retained objects : " +
-            (result.topRetainedObjects != null ? result.topRetainedObjects.size() : 0));
+        LOG.info("  Confidence           : {}", result.confidence);
+        LOG.info("  Root cause type      : {}",
+            result.rootCause != null ? result.rootCause.leakPatternType : "unknown");
+        LOG.info("  Top retained objects : {}",
+            result.topRetainedObjects != null ? result.topRetainedObjects.size() : 0);
 
         return result;
     }
@@ -81,10 +104,14 @@ public class AnalyzerPipeline {
     public AnalysisResult runAnalysisAndSave(String heapDumpPath,
                                              Path   matReportsDir,
                                              Path   outputJsonPath) throws Exception {
+        Path normalizedOutput = outputJsonPath.toAbsolutePath().normalize();
+        if (normalizedOutput.getParent() != null) {
+            Files.createDirectories(normalizedOutput.getParent());
+        }
         AnalysisResult result = runAnalysis(heapDumpPath, matReportsDir);
         String json = result.toJson();
-        Files.writeString(outputJsonPath, json);
-        LOG.info("Analysis written to: " + outputJsonPath.toAbsolutePath());
+        Files.writeString(normalizedOutput, json);
+        LOG.info("Analysis written to: {}", normalizedOutput);
         return result;
     }
 
@@ -94,61 +121,39 @@ public class AnalyzerPipeline {
 
     /**
      * Run from the command line:
-     *   java -cp <classpath> com.heapanalyzer.AnalyzerPipeline \
+     *   java -cp <classpath> org.test.AnalyzerPipeline \
      *        /path/to/dump.hprof \
      *        /path/to/mat-reports \
-     *        [optional: /path/to/output.json]
-     * ANTHROPIC_API_KEY must be set as an environment variable.
+     *        [optional: /path/to/output.json] \
+     *        [optional: strategy]
      */
     public static void main(String[] args) throws Exception {
-        configureLogging();
-
         if (args.length < 2) {
-            System.err.println(
-                "Usage: AnalyzerPipeline <heap-dump.hprof> <mat-reports-dir> [output.json]");
+            LOG.error("Usage: AnalyzerPipeline <heap-dump.hprof> <mat-reports-dir> [output.json] [strategy]");
             System.exit(1);
         }
 
-        String apiKey = System.getenv("ANTHROPIC_API_KEY");
-        if (apiKey == null || apiKey.isBlank()) {
-            System.err.println("ERROR: ANTHROPIC_API_KEY environment variable is not set.");
-            System.exit(1);
-        }
-
-        String  heapDumpPath  = args[0];
-        Path    matReportsDir = Path.of(args[1]);
-        Path    outputPath    = args.length > 2
-            ? Path.of(args[2])
+        String heapDumpPath = args[0];
+        Path matReportsDir = Path.of(args[1]).toAbsolutePath().normalize();
+        Path outputPath = args.length > 2
+            ? Path.of(args[2]).toAbsolutePath().normalize()
             : matReportsDir.resolve("analysis_result.json");
+        AnalysisStrategyType strategyType = args.length > 3
+            ? AnalysisStrategyType.fromString(args[3])
+            : AnalysisStrategyFactory.resolveType();
 
-        AnalyzerPipeline pipeline = new AnalyzerPipeline(apiKey);
-        AnalysisResult   result   = pipeline.runAnalysisAndSave(
-            heapDumpPath, matReportsDir, outputPath);
+        LOG.info("Standalone AnalyzerPipeline starting with strategy={}", strategyType);
+        HeapAnalysisStrategy strategy = AnalysisStrategyFactory.create(strategyType, matReportsDir);
+        AnalyzerPipeline pipeline = new AnalyzerPipeline(strategy);
+        AnalysisResult result = pipeline.runAnalysisAndSave(heapDumpPath, matReportsDir, outputPath);
 
-        // Print summary to stdout regardless of output file
-        System.out.println("\n========================================");
-        System.out.println(" ANALYSIS SUMMARY");
-        System.out.println("========================================");
-        System.out.println(result.summary);
+        LOG.info("Summary: {}", result.summary);
         if (result.rootCause != null) {
-            System.out.println("\nRoot cause  : " + result.rootCause.description);
-            System.out.println("Leak type   : " + result.rootCause.leakPatternType);
-            System.out.println("Class       : " + result.rootCause.responsibleClass);
+            LOG.info("Root cause  : {}", result.rootCause.description);
+            LOG.info("Leak type   : {}", result.rootCause.leakPatternType);
+            LOG.info("Class       : {}", result.rootCause.responsibleClass);
         }
-        System.out.println("Confidence  : " + result.confidence);
-        System.out.println("\nFull JSON   : " + outputPath.toAbsolutePath());
-    }
-
-    private static void configureLogging() {
-        Logger root = Logger.getLogger("");
-        root.setLevel(Level.INFO);
-        ConsoleHandler handler = new ConsoleHandler();
-        handler.setFormatter(new SimpleFormatter() {
-            @Override public String format(LogRecord r) {
-                return String.format("[%s] %s%n",
-                    r.getLevel(), r.getMessage());
-            }
-        });
-        root.addHandler(handler);
+        LOG.info("Confidence  : {}", result.confidence);
+        LOG.info("Full JSON   : {}", outputPath);
     }
 }

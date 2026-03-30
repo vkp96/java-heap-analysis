@@ -3,6 +3,7 @@ package org.test.strategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.test.AnalysisResult;
+import org.test.MATRunner;
 import org.test.MatReportExtractor;
 import org.test.client.CopilotClient;
 import org.test.parser.copilot.CopilotResponseParser;
@@ -59,7 +60,8 @@ public class CopilotPromptStrategy implements HeapAnalysisStrategy {
 
     @Override
     public AnalysisResult analyze(MatReportExtractor.MatReport report, int topN) throws Exception {
-        Files.createDirectories(workDir);
+        Path analysisWorkDir = resolveAnalysisWorkDir(report);
+        Files.createDirectories(analysisWorkDir);
 
         // 1. Build and save the prompt
         LOG.info("[CopilotPrompt] Building prompt (topN={})", topN);
@@ -67,7 +69,7 @@ public class CopilotPromptStrategy implements HeapAnalysisStrategy {
                         .withTopN(topN)
                         .buildFromReport(report);
 
-        Path promptFile = workDir.resolve(PROMPT_FILE_NAME);
+        Path promptFile = analysisWorkDir.resolve(PROMPT_FILE_NAME);
         Files.writeString(promptFile, prompt);
         LOG.info("[CopilotPrompt] Prompt written to {} ({} chars)", promptFile, prompt.length());
 
@@ -76,7 +78,7 @@ public class CopilotPromptStrategy implements HeapAnalysisStrategy {
         String rawResponse = copilotClient.chat(prompt);
         LOG.info("[CopilotPrompt] Received raw Copilot response ({} chars)", rawResponse.length());
 
-        Path responseFile = workDir.resolve(RESPONSE_FILE_NAME);
+        Path responseFile = analysisWorkDir.resolve(RESPONSE_FILE_NAME);
         Files.writeString(responseFile, rawResponse);
         LOG.info("[CopilotPrompt] Raw Copilot response written to {}", responseFile);
 
@@ -108,6 +110,23 @@ public class CopilotPromptStrategy implements HeapAnalysisStrategy {
             return CopilotClient.fromEnvironment();
         } catch (Exception e) {
             throw new IllegalStateException("Failed to initialize CopilotClient", e);
+        }
+    }
+
+    private Path resolveAnalysisWorkDir(MatReportExtractor.MatReport report) {
+        if (report == null || report.heapDumpPath == null || report.heapDumpPath.isBlank()) {
+            return workDir;
+        }
+
+        try {
+            String heapBaseName = MATRunner.stripExtension(Path.of(report.heapDumpPath)
+                    .getFileName()
+                    .toString());
+            return workDir.resolve(heapBaseName).toAbsolutePath().normalize();
+        } catch (Exception e) {
+            LOG.warn("[CopilotPrompt] Failed to derive per-analysis work directory from heapDumpPath='{}'. Using base workDir {}.",
+                    report.heapDumpPath, workDir, e);
+            return workDir;
         }
     }
 }

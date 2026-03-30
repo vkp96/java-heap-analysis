@@ -6,7 +6,7 @@
     </envs>
     <option name="MAIN_CLASS_NAME" value="org.test.HeapDumpWatcher" />
     <module name="heapfixer.main" />
-    <option name="PROGRAM_PARAMETERS" value="../heapdumps ../heapdumps D:\Softwares\MemoryAnalyzer\mat" />
+    <option name="PROGRAM_PARAMETERS" value="../heapdumps ../heapdumps D:\Softwares\MemoryAnalyzer\mat COPILOT_PROMPT" />
     <option name="WORKING_DIRECTORY" value="$MODULE_WORKING_DIR$" />
     <extension name="coverage">
       <pattern>
