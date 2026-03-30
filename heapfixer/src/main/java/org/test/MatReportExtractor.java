@@ -74,10 +74,11 @@ public class MatReportExtractor {
      * @param heapDumpPath   Original .hprof file path, for provenance in the output
      */
     public MatReport extract(Path matReportsDir, String heapDumpPath) throws IOException {
-        log.info("extract(): matReportsDir='{}' heapDumpPath='{}'", matReportsDir, heapDumpPath);
-        String leakText    = extractLeakSuspectsReport(matReportsDir, heapDumpPath);
-        String overviewText = extractSystemOverview(matReportsDir, heapDumpPath);
-        String dominatorText = extractDominatorTree(matReportsDir);
+        Path effectiveReportsDir = resolveReportsDir(matReportsDir, heapDumpPath);
+        log.info("extract(): matReportsDir='{}' effectiveReportsDir='{}' heapDumpPath='{}'", matReportsDir, effectiveReportsDir, heapDumpPath);
+        String leakText    = extractLeakSuspectsReport(effectiveReportsDir, heapDumpPath);
+        String overviewText = extractSystemOverview(effectiveReportsDir, heapDumpPath);
+        String dominatorText = extractDominatorTree(effectiveReportsDir);
         List<String> blocks = splitIntoSuspectBlocks(leakText);
 
         return new MatReport(leakText, overviewText, heapDumpPath, blocks, dominatorText);
@@ -89,7 +90,7 @@ public class MatReportExtractor {
 
     private String extractLeakSuspectsReport(Path reportsDir, String heapDumpPath) throws IOException {
         // MAT writes a zip; look for it first, then fall back to a plain HTML file
-        String heapDumpBaseName = MATRunner.stripExtension(heapDumpPath);
+        String heapDumpBaseName = heapDumpBaseName(heapDumpPath);
         Path zip  = reportsDir.resolve(heapDumpBaseName + "_Leak_Suspects.zip");
         Path html = reportsDir.resolve("leak_suspects.html");
         log.info("extractLeakSuspectsReport(): checking zip='{}' and html='{}'", zip, html);
@@ -136,7 +137,7 @@ public class MatReportExtractor {
     private String extractSystemOverview(Path reportsDir, String heapDumpPath) throws IOException {
         // MAT often writes a heap-specific zip (based on the hprof basename) or a
         // generic system_overview.zip or folder. Try heap-specific zip names first.
-        String heapDumpBaseName = MATRunner.stripExtension(heapDumpPath);
+        String heapDumpBaseName = heapDumpBaseName(heapDumpPath);
         String[] candidateZips = new String[] {
             heapDumpBaseName + "_System_Overview.zip",
             heapDumpBaseName + "_SystemOverview.zip",
@@ -215,6 +216,38 @@ public class MatReportExtractor {
         }
         log.debug("No dominator tree found in {}", reportsDir);
         return null;
+    }
+
+    private Path resolveReportsDir(Path reportsDir, String heapDumpPath) {
+        Path normalizedReportsDir = reportsDir.toAbsolutePath().normalize();
+        if (heapDumpPath == null || heapDumpPath.isBlank()) {
+            return normalizedReportsDir;
+        }
+
+        try {
+            Path expectedDir = MATRunner.resolveReportDirectory(Path.of(heapDumpPath), normalizedReportsDir);
+            if (!normalizedReportsDir.equals(expectedDir) && Files.isDirectory(expectedDir)) {
+                log.info("Resolved MAT reports directory from {} to heap-specific child {}", normalizedReportsDir, expectedDir);
+                return expectedDir;
+            }
+        } catch (InvalidPathException e) {
+            log.warn("Could not resolve heap-specific reports directory for heapDumpPath='{}'", heapDumpPath, e);
+        }
+
+        return normalizedReportsDir;
+    }
+
+    private String heapDumpBaseName(String heapDumpPath) {
+        if (heapDumpPath == null || heapDumpPath.isBlank()) {
+            return "heapdump";
+        }
+
+        try {
+            return MATRunner.stripExtension(Path.of(heapDumpPath).getFileName().toString());
+        } catch (InvalidPathException e) {
+            log.warn("Unable to parse heapDumpPath '{}'; falling back to string-based basename extraction", heapDumpPath, e);
+            return MATRunner.stripExtension(heapDumpPath);
+        }
     }
 
     /** Reads a named entry from a zip archive and returns its string content. */

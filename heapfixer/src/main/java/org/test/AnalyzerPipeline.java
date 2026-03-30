@@ -63,7 +63,7 @@ public class AnalyzerPipeline {
     public AnalysisResult runAnalysis(String heapDumpPath, Path matReportsDir)
             throws Exception {
 
-        Path normalizedReportsDir = matReportsDir.toAbsolutePath().normalize();
+        Path normalizedReportsDir = resolveMatReportsDir(heapDumpPath, matReportsDir);
 
         LOG.info("=== Heap Dump Analysis Pipeline Starting ===");
         LOG.info("Heap dump      : {}", heapDumpPath);
@@ -94,6 +94,22 @@ public class AnalyzerPipeline {
             result.topRetainedObjects != null ? result.topRetainedObjects.size() : 0);
 
         return result;
+    }
+
+    private Path resolveMatReportsDir(String heapDumpPath, Path matReportsDir) {
+        Path normalizedReportsDir = matReportsDir.toAbsolutePath().normalize();
+
+        if (heapDumpPath == null || heapDumpPath.isBlank()) {
+            return normalizedReportsDir;
+        }
+
+        Path expectedReportsDir = MATRunner.resolveReportDirectory(Path.of(heapDumpPath), normalizedReportsDir);
+        if (!normalizedReportsDir.equals(expectedReportsDir) && Files.isDirectory(expectedReportsDir)) {
+            LOG.info("MAT reports root {} resolved to heap-specific reports directory {}", normalizedReportsDir, expectedReportsDir);
+            return expectedReportsDir;
+        }
+
+        return normalizedReportsDir;
     }
 
     /**

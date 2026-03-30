@@ -164,7 +164,7 @@ public class HeapDumpWatcher implements AutoCloseable {
                 return;
             }
 
-            Path matReportsDir = dest.resolve(MATRunner.stripExtension(heapDumpFile.getName())).toAbsolutePath().normalize();
+            Path matReportsDir = MATRunner.resolveReportDirectory(heapDumpFile.toPath(), dest);
             Path outputJson = matReportsDir.resolve("analysis_result.json");
             LOGGER.info("Invoking AnalyzerPipeline with MAT reports dir {} and output file {}", matReportsDir, outputJson);
             AnalysisResult result = analyzerPipeline.runAnalysisAndSave(

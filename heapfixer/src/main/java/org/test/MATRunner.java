@@ -63,7 +63,7 @@ public class MATRunner {
 
         String baseName = stripExtension(heapDumpPath.getFileName().toString());
 
-        destDirPath = destDirPath.resolve(baseName);
+        destDirPath = resolveReportDirectory(heapDumpPath, destDirPath);
         Files.createDirectories(destDirPath);
         LOG.info("Created destination directory for report: " + destDirPath.toAbsolutePath());
 
@@ -201,6 +201,27 @@ public class MATRunner {
     public static String stripExtension(String s) {
         int idx = s.lastIndexOf('.');
         return (idx > 0) ? s.substring(0, idx) : s;
+    }
+
+    /**
+     * Resolve the canonical MAT reports directory for a heap dump under the given
+     * destination root. If the supplied destination already points at the
+     * heap-specific directory, it is returned unchanged.
+     */
+    public static Path resolveReportDirectory(Path heapDumpPath, Path destDirRoot) {
+        if (heapDumpPath == null) throw new IllegalArgumentException("heapDumpPath must not be null");
+        if (destDirRoot == null) throw new IllegalArgumentException("destDirRoot must not be null");
+
+        Path normalizedHeapDump = heapDumpPath.toAbsolutePath().normalize();
+        Path normalizedDestRoot = destDirRoot.toAbsolutePath().normalize();
+        String baseName = stripExtension(normalizedHeapDump.getFileName().toString());
+
+        if (normalizedDestRoot.getFileName() != null
+                && normalizedDestRoot.getFileName().toString().equalsIgnoreCase(baseName)) {
+            return normalizedDestRoot;
+        }
+
+        return normalizedDestRoot.resolve(baseName).toAbsolutePath().normalize();
     }
 
     /**
