@@ -87,6 +87,33 @@ public class LeakSuspectPromptCreator {
         MatReportExtractor extractor = new MatReportExtractor();
         MatReportExtractor.MatReport report = extractor.extract(reportsDir, heapDumpPath);
 
+        return buildFromReport(report);
+    }
+
+    /**
+     * Build the prompt directly from an already extracted MAT report.
+     * <p>
+     * This avoids re-reading MAT report files from disk when a caller already
+     * has a populated {@link MatReportExtractor.MatReport} instance.
+     */
+    public String buildFromReport(MatReportExtractor.MatReport report) {
+        if (report == null) {
+            throw new IllegalArgumentException("report must not be null");
+        }
+
+        if ((heapDumpPath == null || heapDumpPath.isBlank())
+                && report.heapDumpPath != null
+                && !report.heapDumpPath.isBlank()) {
+            heapDumpPath = Paths.get(report.heapDumpPath).toAbsolutePath().normalize().toString();
+        }
+
+        log.info("[LeakSuspectPromptCreator] Building prompt directly from MatReport. heapDumpPath={}, suspectBlocks={}, leakChars={}, overviewChars={}, dominatorChars={}",
+                heapDumpPath,
+                report.suspectBlocks != null ? report.suspectBlocks.size() : 0,
+                report.rawLeakSuspectsText != null ? report.rawLeakSuspectsText.length() : 0,
+                report.rawSystemOverviewText != null ? report.rawSystemOverviewText.length() : 0,
+                report.dominatorTreeText != null ? report.dominatorTreeText.length() : 0);
+
         return assemblePrompt(report);
     }
 

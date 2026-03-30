@@ -1,6 +1,7 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="HeapDumpWatcher" type="Application" factoryName="Application" nameIsGenerated="true">
     <envs>
+      <env name="COPILOT_AUTH_TOKEN_FILE" value="src/main/resources/copilot_auth_token.key" />
       <env name="MAT_TOOL_PATH" value="D:\Softwares\MemoryAnalyzer\mat" />
     </envs>
     <option name="MAIN_CLASS_NAME" value="org.test.HeapDumpWatcher" />

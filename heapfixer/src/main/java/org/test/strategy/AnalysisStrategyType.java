@@ -20,10 +20,10 @@ public enum AnalysisStrategyType {
     GEMINI,
 
     /**
-     * File-based Copilot prompt flow.
+     * GitHub Copilot API-backed flow.
      * <p>
-     * Generates a prompt file that a human (or external tool) pastes into
-     * Copilot Chat; the strategy then polls for a response file and parses it.
+     * Generates the Copilot prompt from the MAT report, submits it via
+     * {@code CopilotClient}, and parses the returned JSON into an AnalysisResult.
      */
     COPILOT_PROMPT;
 

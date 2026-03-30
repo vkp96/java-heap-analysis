@@ -1,0 +1,250 @@
+╔══════════════════════════════════════════════════════════════════╗
+║          JAVA HEAP DUMP ANALYSIS — COPILOT PROMPT               ║
+║  Generated: 2026-03-29T12:02:51.057983300Z
+║  Paste this entire message into Copilot Chat and send it.       ║
+╚══════════════════════════════════════════════════════════════════╝
+
+You are a senior Java performance engineer specialising in memory leak analysis.
+Analyse the Eclipse MAT (Memory Analyser Tool) report data below and return
+ONLY a single, valid JSON object. No prose, no markdown fences, no explanation
+outside the JSON.
+
+═══════════════════════ MAT REPORT DATA ═══════════════════════
+
+--- SYSTEM OVERVIEW ---
+System Overview
+
+Skip to main content
+System Overview
+
+System Overview
+
+ Heap Dump Overview 
+
+Used heap dump15.8 MB
+
+Number of objects17,063
+
+Number of classes1,083
+
+Number of class loaders4
+
+Number of GC roots1,022
+
+Formathprof
+
+JVM versionjava version "20.0.2" 2023-07-18
+Java(TM) SE Runtime Environment (20.0.2+9-78)
+Java HotSpot(TM) 64-Bit Server VM (build 20.0.2+9-78, mixed mode, sharing)
+
+Time10:18:25 pm IST
+
+Date27 Mar 2026
+
+Identifier size64-bit
+
+Compressed object pointerstrue
+
+File pathD:\Project\AutomaticHeapDumpAnalysis\java-heap-analysis\heapdumps\java_pid20148\java_pid20148.hprof
+
+File length1,91,96,760
+
+Total: 13 entries
+
+System Properties 
+
+Thread Overview 
+
+Top Consumers 
+
+Class Histogram 
+
+Table Of Contents
+Created by Eclipse Memory Analyzer
+
+--- LEAK SUSPECTS REPORT ---
+Leak Suspects
+
+Skip to main content
+Leak Suspects
+
+Leak Suspects
+
+System Overview
+
+ Leaks 
+
+Overview
+
+Problem Suspect 1
+
+The thread java.lang.Thread @ 0xff0a64a0 main keeps local variables with total size 1,57,29,608 (94.84%) bytes.
+The memory is accumulated in one instance of java.lang.Object[], loaded by <system class loader>, which occupies 1,57,28,960 (94.84%) bytes.
+Significant stack frames and local variables
+
+org.test.HeapDumper.main([Ljava/lang/String;)V (HeapDumper.java:23)
+java.util.ArrayList @ 0xff000088 retains 1,57,28,984 (94.84%) bytes
+
+The stacktrace of this Thread is available. See stacktrace. See stacktrace with involved local variables.
+
+Keywords
+
+java.lang.Object[]
+
+org.test.HeapDumper.main([Ljava/lang/String;)V
+
+HeapDumper.java:23
+
+Details &raquo;
+
+Table Of Contents
+Created by Eclipse Memory Analyzer
+
+--- INDIVIDUAL SUSPECT BLOCKS ---
+• Suspect 1:
+Problem Suspect 1
+
+The thread java.lang.Thread @ 0xff0a64a0 main keeps local variables with total size 1,57,29,608 (94.84%) bytes.
+The memory is accumulated in one instance of java.lang.Object[], loaded by <system class loader>, which occupies 1,57,28,960 (94.84%) bytes.
+Significant stack frames and local variables
+
+org.test.HeapDumper.main([Ljava/lang/String;)V (HeapDumper.java:23)
+java.util.ArrayList @ 0xff000088 retains 1,57,28,984 (94.84%) bytes
+
+The stacktrace of this Thread is available. See stacktrace. See stacktrace with involved local variables.
+
+Keywords
+
+java.lang.Object[]
+
+org.test.HeapDumper.main([Ljava/lang/String;)V
+
+HeapDumper.java:23
+
+Details &raquo;
+
+Table Of Contents
+Created by Eclipse Memory Analyzer
+
+═════════════════════════════════════════════════════════════
+
+═══════════════════════ INSTRUCTIONS ════════════════════════════
+
+Using the MAT report data above, extract and reason over the following:
+
+1. TOP RETAINED OBJECTS
+   - Identify the top 10 object types by retained heap size.
+   - For each: fully-qualified class name, instance count, retained bytes,
+     retained heap as a percentage of total heap, and whether MAT flagged it
+     as a leak suspect.
+
+2. GC ROOT CHAINS
+   - For every leak suspect MAT identifies, trace the reference chain
+     from its GC root down to the suspected leak object.
+   - Identify root type (Thread, ClassLoader, JNI, Static, etc.).
+
+3. DOMINANT ALLOCATOR STACKS
+   - Where are the leaking objects being allocated?
+   - If stack frames are present in the report, use them.
+   - If absent, infer the most likely allocator from the class name and leak pattern.
+
+4. ROOT CAUSE
+   - Identify the single most responsible class and method.
+   - Classify the leak pattern as one of:
+     UNBOUNDED_CACHE | LISTENER_NOT_REMOVED | STATIC_COLLECTION |
+     THREAD_LOCAL_NOT_CLEARED | CLASSLOADER_LEAK |
+     CONNECTION_NOT_CLOSED | LARGE_OBJECT_GRAPH | OTHER
+   - Provide a 2–4 sentence technical explanation.
+   - List 3–5 code-search keywords useful for finding the leak in source.
+
+5. REMEDIATION
+   - List 3–5 concrete, actionable steps.
+   - Each step must name the specific class/method to change and what to do.
+
+6. CONFIDENCE
+   - Rate as HIGH / MEDIUM / LOW.
+   - HIGH = MAT explicitly named a suspect with stack trace.
+   - MEDIUM = suspect is clear but stack is absent.
+   - LOW = report is ambiguous or incomplete.
+
+Rules:
+- Use exact byte values from the report. If only MB/GB are given, convert to bytes.
+- Use null for any field where data is unavailable rather than guessing.
+- Do not include classes with retained_heap_pct < 0.5 unless they are suspects.
+- Output ONLY the JSON object. Nothing else.
+
+═══════════════════════ REQUIRED JSON SCHEMA ════════════════════
+
+Return exactly this structure (populate all fields from the report data above):
+
+{
+  "heap_dump_path": "<string — path to .hprof file or null>",
+  "analyzed_at": "<ISO-8601 timestamp of now>",
+  "summary": "<2–3 sentence plain-English summary for a developer>",
+  "estimated_leak_size_mb": <number or null>,
+  "confidence": "<HIGH|MEDIUM|LOW>",
+
+  "top_retained_objects": [
+    /* Include top 10 ordered by retained_heap_bytes descending */
+    {
+      "class_name": "<fully.qualified.ClassName>",
+      "instance_count": <number or null>,
+      "retained_heap_bytes": <number or null>,
+      "retained_heap_pct": <0.0–100.0 or null>,
+      "is_suspect": <true|false>,
+      "agent_note": "<one-line explanation of why this class stands out>"
+    }
+  ],
+
+  "gc_root_chains": [
+    /* One entry per suspect chain MAT identifies, max 5 */
+    {
+      "chain_label": "<short label e.g. Thread → HashMap → MyObject>",
+      "root_type": "<Thread|ClassLoader|JNI|Static|Unknown>",
+      "root_object": "<description of the GC root object>",
+      "reference_path": [
+        {
+          "from": "<source object description>",
+          "via_field": "<field name or collection type>",
+          "to": "<destination object description>"
+        }
+      ],
+      "suspect_object": "<final leaked object at end of chain>",
+      "retained_heap_bytes": <number or null>
+    }
+  ],
+
+  "dominant_allocator_stacks": [
+    {
+      "allocator_method": "<ClassName.methodName>",
+      "object_count": <number or null>,
+      "retained_heap_bytes": <number or null>,
+      "stack_frames": [
+        "<most specific frame first, e.g. com.example.Foo.bar(Foo.java:42)>",
+        "<frame 2>",
+        "<frame 3>"
+      ],
+      "leak_pattern": "<short description of why this site leaks>"
+    }
+  ],
+
+  "root_cause": {
+    "description": "<one-sentence root cause>",
+    "responsible_class": "<fully.qualified.ClassName>",
+    "responsible_method": "<methodName or null>",
+    "leak_pattern_type": "<UNBOUNDED_CACHE|LISTENER_NOT_REMOVED|STATIC_COLLECTION|THREAD_LOCAL_NOT_CLEARED|CLASSLOADER_LEAK|CONNECTION_NOT_CLOSED|LARGE_OBJECT_GRAPH|OTHER>",
+    "detailed_explanation": "<2–4 sentences explaining the leak mechanism>",
+    "code_search_keywords": ["<keyword1>", "<keyword2>", "<keyword3>"]
+  },
+
+  "remediation": [
+    "<Step 1 — concrete and specific, names the class/method to change>",
+    "<Step 2>",
+    "<Step 3>"
+  ]
+}
+
+══════════════════════════════════════════════════════════════════
+Now output ONLY the JSON object above, populated from the MAT
+report data. No other text before or after the JSON.
+══════════════════════════════════════════════════════════════════

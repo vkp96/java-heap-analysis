@@ -43,9 +43,9 @@ public final class AnalysisStrategyFactory {
      * Create a strategy instance.
      *
      * @param type             the strategy type to create
-     * @param promptWorkDir    working directory for file-based strategies
-     *                         (e.g. {@code COPILOT_PROMPT}); may be {@code null}
-     *                         for API-based strategies
+     * @param promptWorkDir    working directory used by strategies that persist
+     *                         prompt/response artifacts (e.g. {@code COPILOT_PROMPT});
+     *                         may be {@code null} for purely API-based strategies
      * @return a ready-to-use {@link HeapAnalysisStrategy}
      */
     public static HeapAnalysisStrategy create(AnalysisStrategyType type, Path promptWorkDir) {
@@ -69,9 +69,12 @@ public final class AnalysisStrategyFactory {
                 Path workDir = promptWorkDir != null
                         ? promptWorkDir
                         : Path.of(System.getProperty("java.io.tmpdir")).resolve("heapfixer-copilot");
+                Path tokenFile = pathEnvOrNull("COPILOT_AUTH_TOKEN_FILE");
                 long timeoutMinutes = longEnvOrDefault("COPILOT_PROMPT_TIMEOUT_MINUTES", 30);
-                LOG.info("Creating CopilotPromptStrategy (workDir={}, timeout={}m)", workDir, timeoutMinutes);
-                yield new CopilotPromptStrategy(workDir, timeoutMinutes);
+                LOG.info("Creating CopilotPromptStrategy (workDir={}, tokenFile={}, legacyTimeout={}m)", workDir, tokenFile, timeoutMinutes);
+                yield tokenFile != null
+                        ? new CopilotPromptStrategy(workDir, tokenFile)
+                        : new CopilotPromptStrategy(workDir, timeoutMinutes);
             }
         };
     }
@@ -103,6 +106,14 @@ public final class AnalysisStrategyFactory {
             LOG.warn("Invalid numeric value for {}: '{}'; using default {}", varName, val, defaultValue);
             return defaultValue;
         }
+    }
+
+    private static Path pathEnvOrNull(String varName) {
+        String val = System.getenv(varName);
+        if (val == null || val.isBlank()) {
+            return null;
+        }
+        return Path.of(val.strip()).toAbsolutePath().normalize();
     }
 }
 
