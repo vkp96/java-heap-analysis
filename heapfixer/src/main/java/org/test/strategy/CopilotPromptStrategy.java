@@ -114,6 +114,17 @@ public class CopilotPromptStrategy implements HeapAnalysisStrategy {
     }
 
     private Path resolveAnalysisWorkDir(MatReportExtractor.MatReport report) {
+        if (report != null && report.reportsDir != null && !report.reportsDir.isBlank()) {
+            try {
+                Path reportsDir = Path.of(report.reportsDir).toAbsolutePath().normalize();
+                LOG.info("[CopilotPrompt] Using MAT reports directory for prompt/response artifacts: {}", reportsDir);
+                return reportsDir;
+            } catch (Exception e) {
+                LOG.warn("[CopilotPrompt] Failed to use reportsDir='{}' from MatReport. Falling back to derived work directory.",
+                        report.reportsDir, e);
+            }
+        }
+
         if (report == null || report.heapDumpPath == null || report.heapDumpPath.isBlank()) {
             return workDir;
         }

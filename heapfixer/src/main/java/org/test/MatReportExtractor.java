@@ -27,6 +27,7 @@ public class MatReportExtractor {
         public final String rawLeakSuspectsText;
         public final String rawSystemOverviewText;
         public final String heapDumpPath;
+        public final String reportsDir;
         public final String extractedAt;
         public final List<String> suspectBlocks;   // each Problem Suspect as its own string
         public final String dominatorTreeText;
@@ -34,11 +35,13 @@ public class MatReportExtractor {
         public MatReport(String leakSuspectsText,
                          String systemOverviewText,
                          String heapDumpPath,
+                         String reportsDir,
                          List<String> suspectBlocks,
                          String dominatorTreeText) {
             this.rawLeakSuspectsText  = leakSuspectsText;
             this.rawSystemOverviewText = systemOverviewText;
             this.heapDumpPath         = heapDumpPath;
+            this.reportsDir           = reportsDir;
             this.suspectBlocks        = suspectBlocks;
             this.dominatorTreeText    = dominatorTreeText;
             this.extractedAt          = java.time.Instant.now().toString();
@@ -81,7 +84,7 @@ public class MatReportExtractor {
         String dominatorText = extractDominatorTree(effectiveReportsDir);
         List<String> blocks = splitIntoSuspectBlocks(leakText);
 
-        return new MatReport(leakText, overviewText, heapDumpPath, blocks, dominatorText);
+        return new MatReport(leakText, overviewText, heapDumpPath, effectiveReportsDir.toString(), blocks, dominatorText);
     }
 
     // -------------------------------------------------------------------------
