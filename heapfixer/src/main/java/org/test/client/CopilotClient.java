@@ -18,8 +18,10 @@ import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 public class CopilotClient {
@@ -30,6 +32,7 @@ public class CopilotClient {
     // Unofficial / internal endpoints. Subject to change by GitHub.
     private static final String COPILOT_TOKEN_URL = "https://api.github.com/copilot_internal/v2/token";
     private static final String COPILOT_CHAT_URL = "https://api.githubcopilot.com/chat/completions";
+    private static final String COPILOT_MODELS_URL = "https://api.githubcopilot.com/models";
 
     // These headers are commonly expected by Copilot-backed clients.
     private static final String DEFAULT_EDITOR_VERSION = "vscode/1.99.0";
@@ -153,19 +156,7 @@ public class CopilotClient {
 
         LOG.info("Sending Copilot chat request. messages={}, model={}", messages.size(), model);
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(COPILOT_CHAT_URL))
-                .timeout(Duration.ofSeconds(180))
-                .header("Authorization", "Bearer " + accessToken.token())
-                .header("Content-Type", "application/json")
-                .header("Accept", "application/json")
-                .header("Editor-Version", editorVersion)
-                .header("Editor-Plugin-Version", pluginVersion)
-                .header("User-Agent", userAgent)
-                .header("OpenAI-Intent", "conversation-panel")
-                .header("X-Request-Id", UUID.randomUUID().toString())
-                .header("VScode-SessionId", sessionId)
-                .header("VScode-MachineId", machineId)
+        HttpRequest request = newCopilotApiRequestBuilder(COPILOT_CHAT_URL, accessToken.token())
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody, StandardCharsets.UTF_8))
                 .build();
 
@@ -214,19 +205,7 @@ public class CopilotClient {
             body.put("model", model);
         }
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(COPILOT_CHAT_URL))
-                .timeout(Duration.ofSeconds(180))
-                .header("Authorization", "Bearer " + accessToken.token())
-                .header("Content-Type", "application/json")
-                .header("Accept", "application/json")
-                .header("Editor-Version", editorVersion)
-                .header("Editor-Plugin-Version", pluginVersion)
-                .header("User-Agent", userAgent)
-                .header("OpenAI-Intent", "conversation-panel")
-                .header("X-Request-Id", UUID.randomUUID().toString())
-                .header("VScode-SessionId", sessionId)
-                .header("VScode-MachineId", machineId)
+        HttpRequest request = newCopilotApiRequestBuilder(COPILOT_CHAT_URL, accessToken.token())
                 .POST(HttpRequest.BodyPublishers.ofString(MAPPER.writeValueAsString(body), StandardCharsets.UTF_8))
                 .build();
 
@@ -239,6 +218,67 @@ public class CopilotClient {
         }
 
         return MAPPER.readTree(response.body());
+    }
+
+    /**
+     * Retrieves the model identifiers currently exposed by the Copilot chat API.
+     *
+     * <p>The Copilot REST surface is unofficial/internal and response shapes may vary,
+     * so this method tolerates common payload forms such as:
+     * <ul>
+     *   <li>an OpenAI-style object with {@code data: [{id: ...}]}</li>
+     *   <li>a top-level {@code models: [...]}</li>
+     *   <li>a top-level array of strings or objects</li>
+     * </ul>
+     */
+    public List<String> listAvailableChatCompletionModels() throws Exception {
+        CopilotAccessToken accessToken = ensureAccessToken();
+
+        LOG.info("Requesting available Copilot chat completion models from {}", COPILOT_MODELS_URL);
+
+        HttpRequest request = newCopilotApiRequestBuilder(COPILOT_MODELS_URL, accessToken.token())
+                .GET()
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+        LOG.info("Copilot models response status={}", response.statusCode());
+
+        if (response.statusCode() != 200) {
+            throw new RuntimeException(
+                    "Copilot models request failed. HTTP " + response.statusCode() +
+                            ", body: " + truncate(response.body(), 2000));
+        }
+
+        JsonNode root = MAPPER.readTree(response.body());
+        List<String> modelIds = extractModelIds(root);
+
+        if (modelIds.isEmpty()) {
+            LOG.warn("Copilot models endpoint returned no model identifiers. Response body excerpt: {}",
+                    truncate(response.body(), 1000));
+        } else {
+            LOG.info("Discovered {} available Copilot chat completion model(s).", modelIds.size());
+        }
+        LOG.info("Found the below models available");
+        modelIds.forEach(model -> LOG.info("{}", model));
+
+        return modelIds;
+    }
+
+    private HttpRequest.Builder newCopilotApiRequestBuilder(String url, String accessToken) {
+        return HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .timeout(Duration.ofSeconds(180))
+                .header("Authorization", "Bearer " + accessToken)
+                .header("Content-Type", "application/json")
+                .header("Accept", "application/json")
+                .header("Editor-Version", editorVersion)
+                .header("Editor-Plugin-Version", pluginVersion)
+                .header("User-Agent", userAgent)
+                .header("OpenAI-Intent", "conversation-panel")
+                .header("X-Request-Id", UUID.randomUUID().toString())
+                .header("VScode-SessionId", sessionId)
+                .header("VScode-MachineId", machineId);
     }
 
     private CopilotAccessToken ensureAccessToken() throws Exception {
@@ -316,6 +356,73 @@ public class CopilotClient {
 
         // fallback if schema changes
         return Instant.now().plus(Duration.ofMinutes(25));
+    }
+
+    private List<String> extractModelIds(JsonNode root) {
+        Set<String> modelIds = new LinkedHashSet<>();
+
+        collectModelIds(root.path("data"), modelIds);
+        collectModelIds(root.path("models"), modelIds);
+
+        if (modelIds.isEmpty()) {
+            collectModelIds(root, modelIds);
+        }
+
+        return List.copyOf(modelIds);
+    }
+
+    private void collectModelIds(JsonNode node, Set<String> modelIds) {
+        if (node == null || node.isMissingNode() || node.isNull()) {
+            return;
+        }
+
+        if (node.isArray()) {
+            for (JsonNode item : node) {
+                collectModelIds(item, modelIds);
+            }
+            return;
+        }
+
+        if (node.isTextual()) {
+            addModelId(node.asText(null), modelIds);
+            return;
+        }
+
+        if (!node.isObject()) {
+            return;
+        }
+
+        addModelId(textValue(node.get("id")), modelIds);
+        addModelId(textValue(node.get("model")), modelIds);
+        addModelId(textValue(node.get("name")), modelIds);
+
+        JsonNode nestedModels = node.get("models");
+        if (nestedModels != null && nestedModels != node) {
+            collectModelIds(nestedModels, modelIds);
+        }
+
+        JsonNode nestedData = node.get("data");
+        if (nestedData != null && nestedData != node) {
+            collectModelIds(nestedData, modelIds);
+        }
+    }
+
+    private void addModelId(String candidate, Set<String> modelIds) {
+        if (candidate == null) {
+            return;
+        }
+
+        String normalized = candidate.trim();
+        if (!normalized.isEmpty()) {
+            modelIds.add(normalized);
+        }
+    }
+
+    private String textValue(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        return node.isTextual() ? node.asText() : null;
     }
 
     private String extractAssistantText(JsonNode root) {
@@ -404,6 +511,7 @@ public class CopilotClient {
             CopilotClient client = new CopilotClient(githubOAuthToken, model);
 
             LOG.info("Calling Copilot. promptChars={}, model={}", prompt.length(), model);
+            client.listAvailableChatCompletionModels();
             String response = client.chat(prompt);
             LOG.info("Copilot response:\n{}", response);
         } catch (Exception e) {
