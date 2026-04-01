@@ -73,8 +73,8 @@ public final class AnalysisStrategyFactory {
                 long timeoutMinutes = longEnvOrDefault("COPILOT_PROMPT_TIMEOUT_MINUTES", 30);
                 LOG.info("Creating CopilotPromptStrategy (workDir={}, tokenFile={}, legacyTimeout={}m)", workDir, tokenFile, timeoutMinutes);
                 yield tokenFile != null
-                        ? new CopilotPromptStrategy(workDir, tokenFile)
-                        : new CopilotPromptStrategy(workDir, timeoutMinutes);
+                        ? new CopilotStrategy(workDir, tokenFile)
+                        : new CopilotStrategy(workDir, timeoutMinutes);
             }
         };
     }

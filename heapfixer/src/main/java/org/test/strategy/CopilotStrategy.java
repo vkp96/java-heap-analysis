@@ -37,9 +37,9 @@ import java.nio.file.Path;
  *   <li>{@code COPILOT_MODEL} – optional model override</li>
  * </ul>
  */
-public class CopilotPromptStrategy implements HeapAnalysisStrategy {
+public class CopilotStrategy implements HeapAnalysisStrategy {
 
-    private static final Logger LOG = LoggerFactory.getLogger(CopilotPromptStrategy.class);
+    private static final Logger LOG = LoggerFactory.getLogger(CopilotStrategy.class);
 
     private static final String PROMPT_FILE_NAME   = "copilot_prompt.txt";
     private static final String RESPONSE_FILE_NAME = "copilot_response.json";
@@ -49,16 +49,16 @@ public class CopilotPromptStrategy implements HeapAnalysisStrategy {
     private final CopilotClient copilotClient;
     private final ReportWriterCopilot reportWriterCopilot = new ReportWriterCopilot();
 
-    public CopilotPromptStrategy(Path workDir) {
+    public CopilotStrategy(Path workDir) {
         this(workDir, null);
     }
 
-    public CopilotPromptStrategy(Path workDir, Path copilotAuthTokenFile) {
+    public CopilotStrategy(Path workDir, Path copilotAuthTokenFile) {
         this.workDir = workDir.toAbsolutePath().normalize();
         this.copilotClient = createCopilotClient(copilotAuthTokenFile);
     }
 
-    public CopilotPromptStrategy(Path workDir, long timeoutMinutes) {
+    public CopilotStrategy(Path workDir, long timeoutMinutes) {
         this(workDir);
         LOG.info("[CopilotPrompt] Legacy timeout parameter ({}) is ignored because Copilot requests are now executed directly via CopilotClient.", timeoutMinutes);
     }
