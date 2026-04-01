@@ -8,7 +8,10 @@ import org.test.MatReportExtractor;
 import org.test.client.CopilotClient;
 import org.test.parser.copilot.CopilotResponseParser;
 import org.test.parser.copilot.LeakSuspectPromptCreator;
+import org.test.reporter.copilot.ReportWriterCopilot;
 
+import java.awt.Desktop;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -40,9 +43,11 @@ public class CopilotPromptStrategy implements HeapAnalysisStrategy {
 
     private static final String PROMPT_FILE_NAME   = "copilot_prompt.txt";
     private static final String RESPONSE_FILE_NAME = "copilot_response.json";
+    private static final String ANALYSIS_RESULT_FILE_NAME = "copilot_analysis_result.json";
 
     private final Path workDir;
     private final CopilotClient copilotClient;
+    private final ReportWriterCopilot reportWriterCopilot = new ReportWriterCopilot();
 
     public CopilotPromptStrategy(Path workDir) {
         this(workDir, null);
@@ -89,6 +94,17 @@ public class CopilotPromptStrategy implements HeapAnalysisStrategy {
         if (result.heapDumpPath == null || result.heapDumpPath.isBlank()) {
             result.heapDumpPath = report.heapDumpPath;
         }
+
+        Path analysisResultFile = analysisWorkDir.resolve(ANALYSIS_RESULT_FILE_NAME);
+        LOG.info("[CopilotPrompt] Writing AnalysisResult JSON to {}", analysisResultFile);
+        Files.writeString(analysisResultFile, result.toJson());
+
+        LOG.info("[CopilotPrompt] Generating HTML report using ReportWriterCopilot");
+        Path htmlReportPath = reportWriterCopilot.writeReport(analysisResultFile);
+        LOG.info("[CopilotPrompt] HTML report generated at {}", htmlReportPath);
+
+        openInDefaultBrowser(htmlReportPath);
+
         LOG.info("[CopilotPrompt] Analysis complete. Confidence={}", result.confidence);
         return result;
     }
@@ -138,6 +154,29 @@ public class CopilotPromptStrategy implements HeapAnalysisStrategy {
             LOG.warn("[CopilotPrompt] Failed to derive per-analysis work directory from heapDumpPath='{}'. Using base workDir {}.",
                     report.heapDumpPath, workDir, e);
             return workDir;
+        }
+    }
+
+    private void openInDefaultBrowser(Path htmlReportPath) {
+        try {
+            Path normalizedHtmlReportPath = htmlReportPath.toAbsolutePath().normalize();
+            URI reportUri = normalizedHtmlReportPath.toUri();
+
+            if (!Desktop.isDesktopSupported()) {
+                LOG.warn("[CopilotPrompt] Desktop integration is not supported on this system. Open the report manually: {}", normalizedHtmlReportPath);
+                return;
+            }
+
+            Desktop desktop = Desktop.getDesktop();
+            if (!desktop.isSupported(Desktop.Action.BROWSE)) {
+                LOG.warn("[CopilotPrompt] Desktop browse action is not supported. Open the report manually: {}", normalizedHtmlReportPath);
+                return;
+            }
+
+            LOG.info("[CopilotPrompt] Opening generated report in the default browser: {}", normalizedHtmlReportPath);
+            desktop.browse(reportUri);
+        } catch (Exception e) {
+            LOG.warn("[CopilotPrompt] Failed to open generated HTML report in the default browser. Report path: {}", htmlReportPath, e);
         }
     }
 }

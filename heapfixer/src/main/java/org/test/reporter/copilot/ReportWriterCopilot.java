@@ -22,9 +22,9 @@ import java.util.stream.Collectors;
  * <p>This reporter does not call any external AI service. It takes the structured analysis JSON,
  * renders a readable standalone HTML report, and writes it to disk for developers to inspect.
  */
-public class ReportWriterCopilotAgent {
+public class ReportWriterCopilot {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(ReportWriterCopilotAgent.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(ReportWriterCopilot.class);
 	private static final DateTimeFormatter DISPLAY_TIME_FORMATTER =
 		DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm:ss 'UTC'")
 			.withLocale(Locale.ENGLISH)
@@ -45,7 +45,7 @@ public class ReportWriterCopilotAgent {
 			LOGGER.info("AnalysisResult JSON input path: {}", analysisResultJsonPath);
 			LOGGER.info("HTML report output path: {}", outputHtmlPath);
 
-			ReportWriterCopilotAgent agent = new ReportWriterCopilotAgent();
+			ReportWriterCopilot agent = new ReportWriterCopilot();
 			agent.writeReport(analysisResultJsonPath, outputHtmlPath);
 			LOGGER.info("HTML report generation completed successfully.");
 		} catch (Exception e) {
