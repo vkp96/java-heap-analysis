@@ -25,6 +25,9 @@ public class PrAutomationDraftWorkflow {
     private final PrDraftComposer draftComposer;
     private final PrPolicyChecker policyChecker;
     private final PrAuthorAgent prAuthorAgent;
+    private final PatchGenerationRequestBuilder patchGenerationRequestBuilder;
+    private final PatchApplicationRequestBuilder patchApplicationRequestBuilder;
+    private final PrGenerationRequestBuilder prGenerationRequestBuilder;
     private final RemediationWorkflowConfig config;
 
     /**
@@ -37,6 +40,9 @@ public class PrAutomationDraftWorkflow {
         this.draftComposer = new PrDraftComposer();
         this.policyChecker = new PrPolicyChecker();
         this.prAuthorAgent = new PrAuthorAgent();
+        this.patchGenerationRequestBuilder = new PatchGenerationRequestBuilder();
+        this.patchApplicationRequestBuilder = new PatchApplicationRequestBuilder();
+        this.prGenerationRequestBuilder = new PrGenerationRequestBuilder();
         this.config = Objects.requireNonNull(config, "config must not be null");
     }
 
@@ -85,6 +91,134 @@ public class PrAutomationDraftWorkflow {
             Path changePlanFile = normalizedOutputDir.resolve(config.authoring.changePlanFileName);
             Files.writeString(changePlanFile, authorArtifacts.changePlan().toJson());
             LOG.info("Wrote PR change plan artifact to {}", changePlanFile);
+
+            PrAuthorBackend backend = PrAuthorBackendFactory.create(config.authoring);
+            LOG.info("Executing PR author backend '{}'", backend.backendName());
+            PrAuthorExecution execution = backend.execute(authorArtifacts.request(), authorArtifacts.changePlan(), config.authoring);
+
+            if (execution.promptText() != null && !execution.promptText().isBlank()) {
+                Path promptFile = normalizedOutputDir.resolve(config.authoring.promptFileName);
+                Files.writeString(promptFile, execution.promptText());
+                LOG.info("Wrote PR author prompt to {}", promptFile);
+            }
+
+            if (execution.rawResponse() != null && !execution.rawResponse().isBlank()) {
+                Path rawResponseFile = normalizedOutputDir.resolve(config.authoring.rawResponseFileName);
+                Files.writeString(rawResponseFile, execution.rawResponse());
+                LOG.info("Wrote PR author raw response to {}", rawResponseFile);
+            }
+
+            Path resultFile = normalizedOutputDir.resolve(config.authoring.resultFileName);
+            Files.writeString(resultFile, execution.result().toJson());
+            LOG.info("Wrote PR author normalized result to {}", resultFile);
+
+            if (config.patchGeneration.enabled) {
+                PatchGenerationRequest patchRequest = patchGenerationRequestBuilder.build(
+                        authorArtifacts.changePlan(),
+                        execution.result(),
+                        context,
+                        config.patchGeneration.provider,
+                        config.patchGeneration);
+
+                Path patchRequestFile = normalizedOutputDir.resolve(config.patchGeneration.requestFileName);
+                Files.writeString(patchRequestFile, patchRequest.toJson());
+                LOG.info("Wrote patch generation request to {}", patchRequestFile);
+
+                PatchGenerationBackend patchBackend = PatchGenerationBackendFactory.create(config.patchGeneration);
+                LOG.info("Executing patch generation backend '{}'", patchBackend.backendName());
+                PatchGenerationExecution patchExecution = patchBackend.execute(patchRequest, config.patchGeneration);
+
+                if (patchExecution.promptText() != null && !patchExecution.promptText().isBlank()) {
+                    Path patchPromptFile = normalizedOutputDir.resolve(config.patchGeneration.promptFileName);
+                    Files.writeString(patchPromptFile, patchExecution.promptText());
+                    LOG.info("Wrote patch generation prompt to {}", patchPromptFile);
+                }
+
+                if (patchExecution.rawResponse() != null && !patchExecution.rawResponse().isBlank()) {
+                    Path patchRawResponseFile = normalizedOutputDir.resolve(config.patchGeneration.rawResponseFileName);
+                    Files.writeString(patchRawResponseFile, patchExecution.rawResponse());
+                    LOG.info("Wrote patch generation raw response to {}", patchRawResponseFile);
+                }
+
+                Path patchResultFile = normalizedOutputDir.resolve(config.patchGeneration.resultFileName);
+                Files.writeString(patchResultFile, patchExecution.result().toJson());
+                LOG.info("Wrote patch generation result to {}", patchResultFile);
+
+                if (patchExecution.diffPreview() != null && !patchExecution.diffPreview().isBlank()) {
+                    Path diffPreviewFile = normalizedOutputDir.resolve(config.patchGeneration.diffPreviewFileName);
+                    Files.writeString(diffPreviewFile, patchExecution.diffPreview());
+                    LOG.info("Wrote patch diff preview to {}", diffPreviewFile);
+                }
+
+                if (config.patchApplication.enabled) {
+                    PatchApplicationRequest patchApplicationRequest = patchApplicationRequestBuilder.build(
+                            normalizedRepoRoot,
+                            patchRequest,
+                            patchExecution.result(),
+                            config.patchApplication);
+
+                    Path patchApplicationRequestFile = normalizedOutputDir.resolve(config.patchApplication.requestFileName);
+                    Files.writeString(patchApplicationRequestFile, patchApplicationRequest.toJson());
+                    LOG.info("Wrote patch application request to {}", patchApplicationRequestFile);
+
+                    PatchApplicationBackend patchApplicationBackend = PatchApplicationBackendFactory.create(config.patchApplication);
+                    LOG.info("Executing patch application backend '{}' on branch '{}'", patchApplicationBackend.backendName(), patchApplicationRequest.branchName);
+                    PatchApplicationExecution patchApplicationExecution = patchApplicationBackend.execute(patchApplicationRequest, config.patchApplication);
+
+                    Path patchApplicationResultFile = normalizedOutputDir.resolve(config.patchApplication.resultFileName);
+                    Files.writeString(patchApplicationResultFile, patchApplicationExecution.result().toJson());
+                    LOG.info("Wrote patch application result to {}", patchApplicationResultFile);
+
+                    if (patchApplicationExecution.finalDiff() != null && !patchApplicationExecution.finalDiff().isBlank()) {
+                        Path finalDiffFile = normalizedOutputDir.resolve(config.patchApplication.finalDiffFileName);
+                        Files.writeString(finalDiffFile, patchApplicationExecution.finalDiff());
+                        LOG.info("Wrote applied patch git diff to {}", finalDiffFile);
+                    }
+
+                    if (patchApplicationExecution.validationOutput() != null && !patchApplicationExecution.validationOutput().isBlank()) {
+                        Path validationOutputFile = normalizedOutputDir.resolve(config.patchApplication.validationOutputFileName);
+                        Files.writeString(validationOutputFile, patchApplicationExecution.validationOutput());
+                        LOG.info("Wrote patch application validation output to {}", validationOutputFile);
+                    }
+
+                    if (!patchApplicationExecution.result().successful) {
+                        throw new IllegalStateException("Patch application completed unsuccessfully: " + patchApplicationExecution.result().errors);
+                    }
+
+                    if (config.prGeneration.enabled) {
+                        PrGenerationRequest prGenerationRequest = prGenerationRequestBuilder.build(
+                                normalizedRepoRoot,
+                                draft,
+                                execution.result(),
+                                patchApplicationExecution,
+                                config.prGeneration);
+
+                        Path prGenerationRequestFile = normalizedOutputDir.resolve(config.prGeneration.requestFileName);
+                        Files.writeString(prGenerationRequestFile, prGenerationRequest.toJson());
+                        LOG.info("Wrote PR generation request to {}", prGenerationRequestFile);
+
+                        PrGenerationBackend prGenerationBackend = PrGenerationBackendFactory.create(config.prGeneration);
+                        LOG.info("Executing PR generation backend '{}' for branch '{}'", prGenerationBackend.backendName(), prGenerationRequest.headBranch);
+                        PrGenerationExecution prGenerationExecution = prGenerationBackend.execute(prGenerationRequest, config.prGeneration);
+
+                        Path prGenerationResultFile = normalizedOutputDir.resolve(config.prGeneration.resultFileName);
+                        Files.writeString(prGenerationResultFile, prGenerationExecution.result().toJson());
+                        LOG.info("Wrote PR generation result to {}", prGenerationResultFile);
+
+                        if (prGenerationExecution.previewMarkdown() != null && !prGenerationExecution.previewMarkdown().isBlank()) {
+                            Path prPreviewFile = normalizedOutputDir.resolve(config.prGeneration.previewFileName);
+                            Files.writeString(prPreviewFile, prGenerationExecution.previewMarkdown());
+                            LOG.info("Wrote PR preview markdown to {}", prPreviewFile);
+                        }
+                    } else {
+                        LOG.info("Skipping PR generation because it is disabled by configuration.");
+                    }
+                } else {
+                    LOG.info("Skipping patch application because it is disabled by configuration.");
+                }
+            } else {
+                LOG.info("Skipping patch generation because it is disabled by configuration.");
+            }
         } else if (!decision.allowed) {
             LOG.info("Skipping PrAuthorAgent artifacts because policy did not pass.");
         } else {

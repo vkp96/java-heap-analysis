@@ -39,6 +39,15 @@ public class RemediationWorkflowConfig {
     @JsonProperty("authoring")
     public AuthoringConfig authoring = AuthoringConfig.defaults();
 
+    @JsonProperty("patch_generation")
+    public PatchGenerationConfig patchGeneration = PatchGenerationConfig.defaults();
+
+    @JsonProperty("patch_application")
+    public PatchApplicationConfig patchApplication = PatchApplicationConfig.defaults();
+
+    @JsonProperty("pr_generation")
+    public PrGenerationConfig prGeneration = PrGenerationConfig.defaults();
+
     /**
      * Creates a default in-memory configuration object.
      *
@@ -50,6 +59,9 @@ public class RemediationWorkflowConfig {
         config.retrieval = RetrievalConfig.defaults();
         config.prPolicy = PrPolicyConfig.defaults();
         config.authoring = AuthoringConfig.defaults();
+        config.patchGeneration = PatchGenerationConfig.defaults();
+        config.patchApplication = PatchApplicationConfig.defaults();
+        config.prGeneration = PrGenerationConfig.defaults();
         return config;
     }
 
@@ -189,6 +201,24 @@ public class RemediationWorkflowConfig {
             authoring.normalize();
         }
 
+        if (patchGeneration == null) {
+            patchGeneration = PatchGenerationConfig.defaults();
+        } else {
+            patchGeneration.normalize();
+        }
+
+        if (patchApplication == null) {
+            patchApplication = PatchApplicationConfig.defaults();
+        } else {
+            patchApplication.normalize();
+        }
+
+        if (prGeneration == null) {
+            prGeneration = PrGenerationConfig.defaults();
+        } else {
+            prGeneration.normalize();
+        }
+
         if (repoRoot != null && !repoRoot.isBlank()) {
             repoRoot = Path.of(repoRoot).toAbsolutePath().normalize().toString();
         }
@@ -215,7 +245,6 @@ public class RemediationWorkflowConfig {
         @JsonProperty("include_globs")
         public List<String> includeGlobs = List.of(
                 "src/main/java/**/*.java",
-                "src/test/java/**/*.java",
                 "build.gradle",
                 "settings.gradle"
         );
@@ -341,11 +370,29 @@ public class RemediationWorkflowConfig {
         @JsonProperty("enabled")
         public boolean enabled = true;
 
+        @JsonProperty("provider")
+        public String provider = AuthoringProviderType.LOCAL_PLAN.name();
+
         @JsonProperty("request_file_name")
         public String requestFileName = "pr_author_request.json";
 
         @JsonProperty("change_plan_file_name")
         public String changePlanFileName = "pr_change_plan.json";
+
+        @JsonProperty("result_file_name")
+        public String resultFileName = "pr_author_result.json";
+
+        @JsonProperty("prompt_file_name")
+        public String promptFileName = "pr_author_prompt.txt";
+
+        @JsonProperty("raw_response_file_name")
+        public String rawResponseFileName = "pr_author_response.json";
+
+        @JsonProperty("copilot_auth_token_file")
+        public String copilotAuthTokenFile;
+
+        @JsonProperty("copilot_model")
+        public String copilotModel;
 
         @JsonProperty("max_snippets_per_file")
         public int maxSnippetsPerFile = 2;
@@ -368,14 +415,268 @@ public class RemediationWorkflowConfig {
          * Normalizes file names and numeric limits used by authoring artifacts.
          */
         void normalize() {
+            provider = provider == null || provider.isBlank()
+                    ? AuthoringProviderType.LOCAL_PLAN.name()
+                    : provider.strip();
             requestFileName = requestFileName == null || requestFileName.isBlank()
                     ? "pr_author_request.json"
                     : requestFileName.strip();
             changePlanFileName = changePlanFileName == null || changePlanFileName.isBlank()
                     ? "pr_change_plan.json"
                     : changePlanFileName.strip();
+            resultFileName = resultFileName == null || resultFileName.isBlank()
+                    ? "pr_author_result.json"
+                    : resultFileName.strip();
+            promptFileName = promptFileName == null || promptFileName.isBlank()
+                    ? "pr_author_prompt.txt"
+                    : promptFileName.strip();
+            rawResponseFileName = rawResponseFileName == null || rawResponseFileName.isBlank()
+                    ? "pr_author_response.json"
+                    : rawResponseFileName.strip();
+            copilotAuthTokenFile = copilotAuthTokenFile == null || copilotAuthTokenFile.isBlank()
+                    ? null
+                    : Path.of(copilotAuthTokenFile.strip()).toAbsolutePath().normalize().toString();
+            copilotModel = copilotModel == null || copilotModel.isBlank()
+                    ? null
+                    : copilotModel.strip();
             maxSnippetsPerFile = Math.max(1, maxSnippetsPerFile);
             maxRemediationStepsPerFile = Math.max(1, maxRemediationStepsPerFile);
+        }
+    }
+
+    /**
+     * Configuration block controlling generation of local structured patch
+     * artifacts after the authoring phase completes.
+     */
+    public static class PatchGenerationConfig {
+
+        @JsonProperty("enabled")
+        public boolean enabled = true;
+
+        @JsonProperty("provider")
+        public String provider = PatchProviderType.LOCAL_PLAN.name();
+
+        @JsonProperty("request_file_name")
+        public String requestFileName = "patch_generation_request.json";
+
+        @JsonProperty("result_file_name")
+        public String resultFileName = "patch_generation_result.json";
+
+        @JsonProperty("prompt_file_name")
+        public String promptFileName = "patch_generation_prompt.txt";
+
+        @JsonProperty("raw_response_file_name")
+        public String rawResponseFileName = "patch_generation_response.json";
+
+        @JsonProperty("diff_preview_file_name")
+        public String diffPreviewFileName = "patch_preview.diff";
+
+        @JsonProperty("copilot_auth_token_file")
+        public String copilotAuthTokenFile;
+
+        @JsonProperty("copilot_model")
+        public String copilotModel;
+
+        @JsonProperty("max_files")
+        public int maxFiles = 3;
+
+        @JsonProperty("max_hunks_per_file")
+        public int maxHunksPerFile = 2;
+
+        @JsonProperty("max_lines_per_hunk")
+        public int maxLinesPerHunk = 12;
+
+        @JsonProperty("emit_unified_diff_preview")
+        public boolean emitUnifiedDiffPreview = true;
+
+        /**
+         * Creates a patch-generation configuration using the built-in defaults.
+         *
+         * @return normalized patch-generation configuration
+         */
+        static PatchGenerationConfig defaults() {
+            PatchGenerationConfig config = new PatchGenerationConfig();
+            config.normalize();
+            return config;
+        }
+
+        /**
+         * Normalizes artifact names and numeric limits used by the patch phase.
+         */
+        void normalize() {
+            provider = provider == null || provider.isBlank()
+                    ? PatchProviderType.LOCAL_PLAN.name()
+                    : provider.strip();
+            requestFileName = requestFileName == null || requestFileName.isBlank()
+                    ? "patch_generation_request.json"
+                    : requestFileName.strip();
+            resultFileName = resultFileName == null || resultFileName.isBlank()
+                    ? "patch_generation_result.json"
+                    : resultFileName.strip();
+            promptFileName = promptFileName == null || promptFileName.isBlank()
+                    ? "patch_generation_prompt.txt"
+                    : promptFileName.strip();
+            rawResponseFileName = rawResponseFileName == null || rawResponseFileName.isBlank()
+                    ? "patch_generation_response.json"
+                    : rawResponseFileName.strip();
+            diffPreviewFileName = diffPreviewFileName == null || diffPreviewFileName.isBlank()
+                    ? "patch_preview.diff"
+                    : diffPreviewFileName.strip();
+            copilotAuthTokenFile = copilotAuthTokenFile == null || copilotAuthTokenFile.isBlank()
+                    ? null
+                    : Path.of(copilotAuthTokenFile.strip()).toAbsolutePath().normalize().toString();
+            copilotModel = copilotModel == null || copilotModel.isBlank()
+                    ? null
+                    : copilotModel.strip();
+            maxFiles = Math.max(1, maxFiles);
+            maxHunksPerFile = Math.max(1, maxHunksPerFile);
+            maxLinesPerHunk = Math.max(1, maxLinesPerHunk);
+        }
+    }
+
+    /**
+     * Configuration block controlling local patch application into a Git working
+     * tree after structured patch artifacts are generated.
+     */
+    public static class PatchApplicationConfig {
+
+        @JsonProperty("enabled")
+        public boolean enabled = false;
+
+        @JsonProperty("provider")
+        public String provider = PatchApplicationBackendType.LOCAL_GIT.name();
+
+        @JsonProperty("request_file_name")
+        public String requestFileName = "patch_application_request.json";
+
+        @JsonProperty("result_file_name")
+        public String resultFileName = "patch_application_result.json";
+
+        @JsonProperty("final_diff_file_name")
+        public String finalDiffFileName = "patch_application_final.diff";
+
+        @JsonProperty("validation_output_file_name")
+        public String validationOutputFileName = "patch_application_validation.log";
+
+        @JsonProperty("auto_commit")
+        public boolean autoCommit = false;
+
+        @JsonProperty("commit_message_prefix")
+        public String commitMessagePrefix;
+
+        @JsonProperty("git_user_name")
+        public String gitUserName = "Heapfixer Automation";
+
+        @JsonProperty("git_user_email")
+        public String gitUserEmail = "heapfixer@local";
+
+        @JsonProperty("require_clean_worktree")
+        public boolean requireCleanWorktree = true;
+
+        @JsonProperty("fail_if_branch_exists")
+        public boolean failIfBranchExists = true;
+
+        @JsonProperty("allowed_change_globs")
+        public List<String> allowedChangeGlobs = List.of(
+                "src/main/java/**/*.java",
+                "build.gradle",
+                "settings.gradle"
+        );
+
+        @JsonProperty("validation_commands")
+        public List<String> validationCommands = List.of();
+
+        /**
+         * Creates a patch-application configuration using the built-in defaults.
+         *
+         * @return normalized patch-application configuration
+         */
+        static PatchApplicationConfig defaults() {
+            PatchApplicationConfig config = new PatchApplicationConfig();
+            config.normalize();
+            return config;
+        }
+
+        /**
+         * Normalizes artifact names and path filters used by the patch-application phase.
+         */
+        void normalize() {
+            provider = provider == null || provider.isBlank()
+                    ? PatchApplicationBackendType.LOCAL_GIT.name()
+                    : provider.strip();
+            requestFileName = requestFileName == null || requestFileName.isBlank()
+                    ? "patch_application_request.json"
+                    : requestFileName.strip();
+            resultFileName = resultFileName == null || resultFileName.isBlank()
+                    ? "patch_application_result.json"
+                    : resultFileName.strip();
+            finalDiffFileName = finalDiffFileName == null || finalDiffFileName.isBlank()
+                    ? "patch_application_final.diff"
+                    : finalDiffFileName.strip();
+            validationOutputFileName = validationOutputFileName == null || validationOutputFileName.isBlank()
+                    ? "patch_application_validation.log"
+                    : validationOutputFileName.strip();
+            commitMessagePrefix = commitMessagePrefix == null || commitMessagePrefix.isBlank()
+                    ? null
+                    : commitMessagePrefix.strip();
+            gitUserName = gitUserName == null || gitUserName.isBlank()
+                    ? "Heapfixer Automation"
+                    : gitUserName.strip();
+            gitUserEmail = gitUserEmail == null || gitUserEmail.isBlank()
+                    ? "heapfixer@local"
+                    : gitUserEmail.strip();
+            if (allowedChangeGlobs == null || allowedChangeGlobs.isEmpty()) {
+                allowedChangeGlobs = defaults().allowedChangeGlobs;
+            }
+            if (validationCommands == null) {
+                validationCommands = List.of();
+            }
+        }
+    }
+
+    /**
+     * Configuration block controlling final PR artifact generation from an
+     * applied remediation branch.
+     */
+    public static class PrGenerationConfig {
+
+        @JsonProperty("enabled")
+        public boolean enabled = false;
+
+        @JsonProperty("provider")
+        public String provider = PrGenerationProviderType.LOCAL_ARTIFACT.name();
+
+        @JsonProperty("request_file_name")
+        public String requestFileName = "pr_generation_request.json";
+
+        @JsonProperty("result_file_name")
+        public String resultFileName = "pr_generation_result.json";
+
+        @JsonProperty("preview_file_name")
+        public String previewFileName = "pr_preview.md";
+
+        @JsonProperty("draft")
+        public boolean draft = true;
+
+        static PrGenerationConfig defaults() {
+            PrGenerationConfig config = new PrGenerationConfig();
+            config.normalize();
+            return config;
+        }
+
+        void normalize() {
+            provider = provider == null || provider.isBlank()
+                    ? PrGenerationProviderType.LOCAL_ARTIFACT.name()
+                    : provider.strip();
+            requestFileName = requestFileName == null || requestFileName.isBlank()
+                    ? "pr_generation_request.json"
+                    : requestFileName.strip();
+            resultFileName = resultFileName == null || resultFileName.isBlank()
+                    ? "pr_generation_result.json"
+                    : resultFileName.strip();
+            previewFileName = previewFileName == null || previewFileName.isBlank()
+                    ? "pr_preview.md"
+                    : previewFileName.strip();
         }
     }
 }

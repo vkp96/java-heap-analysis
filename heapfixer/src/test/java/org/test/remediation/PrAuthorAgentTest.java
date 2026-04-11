@@ -45,6 +45,8 @@ class PrAuthorAgentTest {
         assertFalse(decision.allowed, "Expected policy to fail with excessive remediation-step requirement");
         assertFalse(Files.exists(outputDir.resolve("pr_author_request.json")));
         assertFalse(Files.exists(outputDir.resolve("pr_change_plan.json")));
+        assertFalse(Files.exists(outputDir.resolve("patch_generation_request.json")));
+        assertFalse(Files.exists(outputDir.resolve("patch_generation_result.json")));
     }
 
     private String loadResultJson() throws Exception {

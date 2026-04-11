@@ -2,6 +2,9 @@ package org.test;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.test.remediation.PrAutomationDraftWorkflow;
+import org.test.remediation.PrPolicyDecision;
+import org.test.remediation.RemediationWorkflowConfig;
 import org.test.strategy.AnalysisStrategyFactory;
 import org.test.strategy.AnalysisStrategyType;
 import org.test.strategy.ClaudeAnalysisStrategy;
@@ -121,14 +124,51 @@ public class AnalyzerPipeline {
                                              Path   matReportsDir,
                                              Path   outputJsonPath) throws Exception {
         Path normalizedOutput = outputJsonPath.toAbsolutePath().normalize();
+        Path normalizedReportsDir = resolveMatReportsDir(heapDumpPath, matReportsDir);
         if (normalizedOutput.getParent() != null) {
             Files.createDirectories(normalizedOutput.getParent());
         }
-        AnalysisResult result = runAnalysis(heapDumpPath, matReportsDir);
+        AnalysisResult result = runAnalysis(heapDumpPath, normalizedReportsDir);
         String json = result.toJson();
         Files.writeString(normalizedOutput, json);
         LOG.info("Analysis written to: {}", normalizedOutput);
+        runRemediationDraftWorkflowIfEnabled(result, normalizedReportsDir, normalizedOutput);
         return result;
+    }
+
+    private void runRemediationDraftWorkflowIfEnabled(AnalysisResult result,
+                                                      Path matReportsDir,
+                                                      Path outputJsonPath) {
+        try {
+            RemediationWorkflowConfig config = RemediationWorkflowConfig.loadDefault();
+            if (!config.isEnabled()) {
+                LOG.info("Remediation draft workflow is disabled by configuration.");
+                return;
+            }
+
+            Path defaultRepoRoot = Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize();
+            Path repoRoot = config.resolveRepoRoot(defaultRepoRoot);
+            if (repoRoot == null || !Files.isDirectory(repoRoot)) {
+                LOG.warn("Remediation draft workflow enabled, but repo root is invalid: {}", repoRoot);
+                return;
+            }
+
+            Path workflowOutputDir = outputJsonPath.getParent() != null
+                    ? outputJsonPath.getParent()
+                    : matReportsDir;
+
+            LOG.info("Running remediation draft workflow with repoRoot={} and outputDir={}", repoRoot, workflowOutputDir);
+            PrPolicyDecision decision = new PrAutomationDraftWorkflow(config)
+                    .run(result, repoRoot, workflowOutputDir);
+
+            if (decision.allowed) {
+                LOG.info("Remediation draft workflow passed policy checks.");
+            } else {
+                LOG.warn("Remediation draft workflow blocked by policy: {}", decision.failures);
+            }
+        } catch (Exception e) {
+            LOG.error("Remediation draft workflow failed: {}", e.getMessage(), e);
+        }
     }
 
     // -------------------------------------------------------------------------

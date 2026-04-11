@@ -76,16 +76,28 @@ public class PrDraftComposer {
         String normalizedPrefix = prefix == null ? "" : prefix.strip();
         String rootCauseDescription = result.rootCause != null ? nullSafe(result.rootCause.description) : "";
         String titleCore;
-        if (!rootCauseDescription.isBlank()) {
+        if (isConciseTitleCandidate(rootCauseDescription)) {
             titleCore = trimSentence(rootCauseDescription);
         } else if (result.rootCause != null && result.rootCause.responsibleMethod != null
-                && !result.rootCause.responsibleMethod.isBlank()) {
+                && !result.rootCause.responsibleMethod.isBlank()
+                && !"main".equalsIgnoreCase(result.rootCause.responsibleMethod.strip())) {
             titleCore = "Mitigate OOM risk in " + simpleClassName + "." + result.rootCause.responsibleMethod + "()";
         } else {
             titleCore = "Mitigate OOM risk in " + simpleClassName;
         }
 
         return normalizedPrefix.isBlank() ? titleCore : normalizedPrefix + " " + titleCore;
+    }
+
+    private boolean isConciseTitleCandidate(String value) {
+        String normalized = nullSafe(value);
+        if (normalized.isBlank()) {
+            return false;
+        }
+        return normalized.length() <= 72
+                && !normalized.contains(" is retained by ")
+                && !normalized.contains(" preventing GC")
+                && !normalized.contains(" preventing the garbage collector");
     }
 
     /**

@@ -8,7 +8,6 @@
     "allow_repo_wide_fallback": false,
     "include_globs": [
       "src/main/java/**/*.java",
-      "src/test/java/**/*.java",
       "build.gradle",
       "settings.gradle"
     ],
@@ -42,10 +41,59 @@
   },
   "authoring": {
     "enabled": true,
+    "provider": "LOCAL_PLAN",
     "request_file_name": "pr_author_request.json",
     "change_plan_file_name": "pr_change_plan.json",
+    "result_file_name": "pr_author_result.json",
+    "prompt_file_name": "pr_author_prompt.txt",
+    "raw_response_file_name": "pr_author_response.json",
+    "copilot_auth_token_file": null,
+    "copilot_model": null,
     "max_snippets_per_file": 2,
     "max_remediation_steps_per_file": 3
+  },
+  "patch_generation": {
+    "enabled": true,
+    "provider": "LOCAL_PLAN",
+    "request_file_name": "patch_generation_request.json",
+    "result_file_name": "patch_generation_result.json",
+    "prompt_file_name": "patch_generation_prompt.txt",
+    "raw_response_file_name": "patch_generation_response.json",
+    "diff_preview_file_name": "patch_preview.diff",
+    "copilot_auth_token_file": null,
+    "copilot_model": null,
+    "max_files": 3,
+    "max_hunks_per_file": 2,
+    "max_lines_per_hunk": 12,
+    "emit_unified_diff_preview": true
+  },
+  "patch_application": {
+    "enabled": false,
+    "provider": "LOCAL_GIT",
+    "request_file_name": "patch_application_request.json",
+    "result_file_name": "patch_application_result.json",
+    "final_diff_file_name": "patch_application_final.diff",
+    "validation_output_file_name": "patch_application_validation.log",
+    "auto_commit": false,
+    "commit_message_prefix": null,
+    "git_user_name": "Heapfixer Automation",
+    "git_user_email": "heapfixer@local",
+    "require_clean_worktree": true,
+    "fail_if_branch_exists": true,
+    "allowed_change_globs": [
+      "src/main/java/**/*.java",
+      "build.gradle",
+      "settings.gradle"
+    ],
+    "validation_commands": []
+  },
+  "pr_generation": {
+    "enabled": false,
+    "provider": "LOCAL_ARTIFACT",
+    "request_file_name": "pr_generation_request.json",
+    "result_file_name": "pr_generation_result.json",
+    "preview_file_name": "pr_preview.md",
+    "draft": true
   }
 }
 
