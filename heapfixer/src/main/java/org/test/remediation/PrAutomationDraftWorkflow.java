@@ -28,6 +28,7 @@ public class PrAutomationDraftWorkflow {
     private final PatchGenerationRequestBuilder patchGenerationRequestBuilder;
     private final PatchApplicationRequestBuilder patchApplicationRequestBuilder;
     private final PrGenerationRequestBuilder prGenerationRequestBuilder;
+    private final RemotePublishRequestBuilder remotePublishRequestBuilder;
     private final RemediationWorkflowConfig config;
 
     /**
@@ -43,6 +44,7 @@ public class PrAutomationDraftWorkflow {
         this.patchGenerationRequestBuilder = new PatchGenerationRequestBuilder();
         this.patchApplicationRequestBuilder = new PatchApplicationRequestBuilder();
         this.prGenerationRequestBuilder = new PrGenerationRequestBuilder();
+        this.remotePublishRequestBuilder = new RemotePublishRequestBuilder();
         this.config = Objects.requireNonNull(config, "config must not be null");
     }
 
@@ -209,6 +211,45 @@ public class PrAutomationDraftWorkflow {
                             Path prPreviewFile = normalizedOutputDir.resolve(config.prGeneration.previewFileName);
                             Files.writeString(prPreviewFile, prGenerationExecution.previewMarkdown());
                             LOG.info("Wrote PR preview markdown to {}", prPreviewFile);
+                        }
+
+                        if (config.remotePublish.enabled) {
+                            if (!patchApplicationExecution.result().commitCreated || patchApplicationExecution.result().commitSha == null
+                                    || patchApplicationExecution.result().commitSha.isBlank()) {
+                                throw new IllegalStateException("Remote publish requires patch application auto-commit to produce a committed branch head.");
+                            }
+
+                            RemotePublishRequest remotePublishRequest = remotePublishRequestBuilder.build(
+                                    normalizedRepoRoot,
+                                    prGenerationExecution.result(),
+                                    patchApplicationExecution.result(),
+                                    config.remotePublish);
+
+                            Path remotePublishRequestFile = normalizedOutputDir.resolve(config.remotePublish.requestFileName);
+                            Files.writeString(remotePublishRequestFile, remotePublishRequest.toJson());
+                            LOG.info("Wrote remote publish request to {}", remotePublishRequestFile);
+
+                            RemotePublishBackend remotePublishBackend = RemotePublishBackendFactory.create(config.remotePublish);
+                            LOG.info("Executing remote publish backend '{}' for branch '{}'", remotePublishBackend.backendName(), remotePublishRequest.headBranch);
+                            RemotePublishExecution remotePublishExecution = remotePublishBackend.execute(remotePublishRequest, config.remotePublish);
+
+                            Path remotePublishResultFile = normalizedOutputDir.resolve(config.remotePublish.resultFileName);
+                            Files.writeString(remotePublishResultFile, remotePublishExecution.result().toJson());
+                            LOG.info("Wrote remote publish result to {}", remotePublishResultFile);
+
+                            if (remotePublishExecution.pushOutput() != null && !remotePublishExecution.pushOutput().isBlank()) {
+                                Path pushOutputFile = normalizedOutputDir.resolve(config.remotePublish.pushOutputFileName);
+                                Files.writeString(pushOutputFile, remotePublishExecution.pushOutput());
+                                LOG.info("Wrote remote publish push output to {}", pushOutputFile);
+                            }
+
+                            if (remotePublishExecution.rawResponse() != null && !remotePublishExecution.rawResponse().isBlank()) {
+                                Path rawResponseFile = normalizedOutputDir.resolve(config.remotePublish.rawResponseFileName);
+                                Files.writeString(rawResponseFile, remotePublishExecution.rawResponse());
+                                LOG.info("Wrote remote publish raw response to {}", rawResponseFile);
+                            }
+                        } else {
+                            LOG.info("Skipping remote publish because it is disabled by configuration.");
                         }
                     } else {
                         LOG.info("Skipping PR generation because it is disabled by configuration.");

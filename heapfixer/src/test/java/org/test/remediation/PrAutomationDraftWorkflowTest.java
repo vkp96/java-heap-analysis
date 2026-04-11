@@ -65,6 +65,10 @@ class PrAutomationDraftWorkflowTest {
         config.patchApplication.autoCommit = true;
         config.patchApplication.validationCommands = List.of("git diff --name-only");
         config.prGeneration.enabled = true;
+        config.remotePublish.enabled = true;
+        config.remotePublish.provider = RemotePublishProviderType.LOCAL_RECORD_ONLY.name();
+        config.remotePublish.githubOwner = "test-org";
+        config.remotePublish.githubRepo = "heapfixer";
 
         Path repoRoot = createTempGitRepo();
         Path outputDir = Files.createTempDirectory("pr-draft-workflow-apply-test");
@@ -80,6 +84,10 @@ class PrAutomationDraftWorkflowTest {
         assertTrue(Files.exists(outputDir.resolve("pr_generation_request.json")));
         assertTrue(Files.exists(outputDir.resolve("pr_generation_result.json")));
         assertTrue(Files.exists(outputDir.resolve("pr_preview.md")));
+        assertTrue(Files.exists(outputDir.resolve("remote_publish_request.json")));
+        assertTrue(Files.exists(outputDir.resolve("remote_publish_result.json")));
+        assertTrue(Files.exists(outputDir.resolve("remote_publish_push.log")));
+        assertTrue(Files.exists(outputDir.resolve("remote_publish_response.json")));
 
         String branchName = git(repoRoot, "rev-parse", "--abbrev-ref", "HEAD").strip();
         assertTrue(branchName.startsWith("oom-fix/heapdumper-"), "Expected workflow to create a new oom-fix branch");
@@ -90,9 +98,12 @@ class PrAutomationDraftWorkflowTest {
         String patchApplicationResultJson = Files.readString(outputDir.resolve("patch_application_result.json"));
         String prGenerationResultJson = Files.readString(outputDir.resolve("pr_generation_result.json"));
         String prPreviewMarkdown = Files.readString(outputDir.resolve("pr_preview.md"));
+        String remotePublishResultJson = Files.readString(outputDir.resolve("remote_publish_result.json"));
         assertTrue(patchApplicationResultJson.contains("\"commit_created\" : true"));
         assertTrue(prGenerationResultJson.contains("LOCAL_ARTIFACT"));
         assertTrue(prPreviewMarkdown.contains("## Applied Patch"));
+        assertTrue(remotePublishResultJson.contains("LOCAL_RECORD_ONLY"));
+        assertTrue(remotePublishResultJson.contains("pull_request_url"));
     }
 
     private String loadResultJson() throws Exception {

@@ -48,6 +48,9 @@ public class RemediationWorkflowConfig {
     @JsonProperty("pr_generation")
     public PrGenerationConfig prGeneration = PrGenerationConfig.defaults();
 
+    @JsonProperty("remote_publish")
+    public RemotePublishConfig remotePublish = RemotePublishConfig.defaults();
+
     /**
      * Creates a default in-memory configuration object.
      *
@@ -62,6 +65,7 @@ public class RemediationWorkflowConfig {
         config.patchGeneration = PatchGenerationConfig.defaults();
         config.patchApplication = PatchApplicationConfig.defaults();
         config.prGeneration = PrGenerationConfig.defaults();
+        config.remotePublish = RemotePublishConfig.defaults();
         return config;
     }
 
@@ -217,6 +221,12 @@ public class RemediationWorkflowConfig {
             prGeneration = PrGenerationConfig.defaults();
         } else {
             prGeneration.normalize();
+        }
+
+        if (remotePublish == null) {
+            remotePublish = RemotePublishConfig.defaults();
+        } else {
+            remotePublish.normalize();
         }
 
         if (repoRoot != null && !repoRoot.isBlank()) {
@@ -677,6 +687,78 @@ public class RemediationWorkflowConfig {
             previewFileName = previewFileName == null || previewFileName.isBlank()
                     ? "pr_preview.md"
                     : previewFileName.strip();
+        }
+    }
+
+    /**
+     * Configuration block controlling remote branch push and draft PR creation.
+     */
+    public static class RemotePublishConfig {
+
+        @JsonProperty("enabled")
+        public boolean enabled = false;
+
+        @JsonProperty("provider")
+        public String provider = RemotePublishProviderType.GITHUB.name();
+
+        @JsonProperty("request_file_name")
+        public String requestFileName = "remote_publish_request.json";
+
+        @JsonProperty("result_file_name")
+        public String resultFileName = "remote_publish_result.json";
+
+        @JsonProperty("push_output_file_name")
+        public String pushOutputFileName = "remote_publish_push.log";
+
+        @JsonProperty("raw_response_file_name")
+        public String rawResponseFileName = "remote_publish_response.json";
+
+        @JsonProperty("remote_name")
+        public String remoteName = "origin";
+
+        @JsonProperty("github_owner")
+        public String githubOwner;
+
+        @JsonProperty("github_repo")
+        public String githubRepo;
+
+        @JsonProperty("github_token")
+        public String githubToken;
+
+        @JsonProperty("github_api_base_url")
+        public String githubApiBaseUrl;
+
+        static RemotePublishConfig defaults() {
+            RemotePublishConfig config = new RemotePublishConfig();
+            config.normalize();
+            return config;
+        }
+
+        void normalize() {
+            provider = provider == null || provider.isBlank()
+                    ? RemotePublishProviderType.GITHUB.name()
+                    : provider.strip();
+            requestFileName = requestFileName == null || requestFileName.isBlank()
+                    ? "remote_publish_request.json"
+                    : requestFileName.strip();
+            resultFileName = resultFileName == null || resultFileName.isBlank()
+                    ? "remote_publish_result.json"
+                    : resultFileName.strip();
+            pushOutputFileName = pushOutputFileName == null || pushOutputFileName.isBlank()
+                    ? "remote_publish_push.log"
+                    : pushOutputFileName.strip();
+            rawResponseFileName = rawResponseFileName == null || rawResponseFileName.isBlank()
+                    ? "remote_publish_response.json"
+                    : rawResponseFileName.strip();
+            remoteName = remoteName == null || remoteName.isBlank()
+                    ? "origin"
+                    : remoteName.strip();
+            githubOwner = githubOwner == null || githubOwner.isBlank() ? null : githubOwner.strip();
+            githubRepo = githubRepo == null || githubRepo.isBlank() ? null : githubRepo.strip();
+            githubToken = githubToken == null || githubToken.isBlank() ? null : githubToken.strip();
+            githubApiBaseUrl = githubApiBaseUrl == null || githubApiBaseUrl.isBlank()
+                    ? null
+                    : githubApiBaseUrl.strip();
         }
     }
 }

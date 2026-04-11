@@ -29,6 +29,11 @@ This project now includes a local-only remediation drafting flow that runs after
   - `pr_generation_request.json`
   - `pr_generation_result.json`
   - `pr_preview.md`
+- when remote publish is enabled, also writes:
+  - `remote_publish_request.json`
+  - `remote_publish_result.json`
+  - `remote_publish_push.log`
+  - `remote_publish_response.json`
 - for AI-backed patch backends, can also write:
   - `patch_generation_prompt.txt`
   - `patch_generation_response.json`
@@ -88,6 +93,16 @@ You can override it with environment variables:
 - `pr_generation.result_file_name`
 - `pr_generation.preview_file_name`
 - `pr_generation.draft`
+- `remote_publish.provider`
+- `remote_publish.remote_name`
+- `remote_publish.github_owner`
+- `remote_publish.github_repo`
+- `remote_publish.github_token`
+- `remote_publish.github_api_base_url`
+- `remote_publish.request_file_name`
+- `remote_publish.result_file_name`
+- `remote_publish.push_output_file_name`
+- `remote_publish.raw_response_file_name`
 
 ### Default safety posture
 
@@ -98,7 +113,8 @@ You can override it with environment variables:
 - default authoring backend is `LOCAL_PLAN` so tests and offline runs remain deterministic
 - patch generation remains provider-neutral, while patch application is opt-in and operates on a new Git branch
 - auto-commit is opt-in and uses a local Git identity by default
-- PR generation currently produces local review artifacts instead of opening a remote PR
+- PR generation produces the final title/body artifacts used for remote publishing
+- remote publish is opt-in and can push the branch plus create a draft PR through a provider-backed integration
 - human approval is still required for any future fix PR
 
 ### Run the workflow test

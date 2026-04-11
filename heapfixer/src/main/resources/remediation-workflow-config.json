@@ -94,6 +94,19 @@
     "result_file_name": "pr_generation_result.json",
     "preview_file_name": "pr_preview.md",
     "draft": true
+  },
+  "remote_publish": {
+    "enabled": false,
+    "provider": "GITHUB",
+    "request_file_name": "remote_publish_request.json",
+    "result_file_name": "remote_publish_result.json",
+    "push_output_file_name": "remote_publish_push.log",
+    "raw_response_file_name": "remote_publish_response.json",
+    "remote_name": "origin",
+    "github_owner": null,
+    "github_repo": null,
+    "github_token": null,
+    "github_api_base_url": null
   }
 }
 
