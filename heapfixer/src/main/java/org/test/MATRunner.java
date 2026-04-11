@@ -1,3 +1,5 @@
+            //cmd.add("-output");
+            //cmd.add(workDir.toString());
 package org.test;
 
 import java.io.IOException;

@@ -1,0 +1,51 @@
+{
+  "enabled": false,
+  "repo_root": "",
+  "retrieval": {
+    "max_files": 3,
+    "max_snippets_per_file": 2,
+    "snippet_context_lines": 12,
+    "allow_repo_wide_fallback": false,
+    "include_globs": [
+      "src/main/java/**/*.java",
+      "src/test/java/**/*.java",
+      "build.gradle",
+      "settings.gradle"
+    ],
+    "exclude_globs": [
+      "build/**",
+      ".gradle/**",
+      ".idea/**",
+      "out/**"
+    ]
+  },
+  "pr_policy": {
+    "minimum_confidence": "MEDIUM",
+    "require_root_cause": true,
+    "require_responsible_class_or_keywords": true,
+    "minimum_remediation_steps": 1,
+    "max_candidate_files": 3,
+    "max_total_snippets": 6,
+    "allowed_change_globs": [
+      "src/main/java/**/*.java",
+      "build.gradle",
+      "settings.gradle"
+    ],
+    "title_prefix": "[OOM Fix]",
+    "required_body_sections": [
+      "## Problem",
+      "## Root Cause",
+      "## Proposed Fix",
+      "## Validation",
+      "## Human Approval Required"
+    ]
+  },
+  "authoring": {
+    "enabled": true,
+    "request_file_name": "pr_author_request.json",
+    "change_plan_file_name": "pr_change_plan.json",
+    "max_snippets_per_file": 2,
+    "max_remediation_steps_per_file": 3
+  }
+}
+
