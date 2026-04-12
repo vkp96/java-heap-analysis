@@ -27,3 +27,40 @@ dependencies {
 test {
     useJUnitPlatform()
 }
+
+tasks.register('runJiraIssueCreator', JavaExec) {
+    group = 'application'
+    description = 'Runs the standalone JiraIssueCreator against an AnalysisResult JSON file.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'org.test.jira.JiraIssueCreator'
+
+    doFirst {
+        if (!project.hasProperty('analysisResultFile')) {
+            throw new GradleException('Missing -PanalysisResultFile=<path-to-analysis-result-json>.')
+        }
+
+        args project.property('analysisResultFile').toString()
+
+        if (project.hasProperty('jiraEndpoint')) {
+            args '--endpoint', project.property('jiraEndpoint').toString()
+        }
+        if (project.hasProperty('jiraOutputFile')) {
+            args '--output', project.property('jiraOutputFile').toString()
+        }
+        if (project.hasProperty('jiraToken')) {
+            args '--token', project.property('jiraToken').toString()
+        }
+        if (project.hasProperty('jiraAuthHeader')) {
+            args '--auth-header', project.property('jiraAuthHeader').toString()
+        }
+        if (project.hasProperty('jiraTool')) {
+            args '--tool', project.property('jiraTool').toString()
+        }
+        if (project.hasProperty('jiraProjectKey')) {
+            args '--project-key', project.property('jiraProjectKey').toString()
+        }
+        if (project.hasProperty('jiraDryRun') && project.property('jiraDryRun').toString().toBoolean()) {
+            args '--dry-run'
+        }
+    }
+}

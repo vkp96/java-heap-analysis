@@ -133,3 +133,60 @@ $env:HEAPFIXER_REPO_ROOT = "D:\Project\AutomaticHeapDumpAnalysis\java-heap-analy
 
 After `analysis_result.json` is written, the remediation draft artifacts will be written beside it.
 
+## Standalone Jira story creation from `AnalysisResult`
+
+This project now includes a standalone `JiraIssueCreator` CLI at `org.test.jira.JiraIssueCreator`.
+
+What it does:
+
+- reads an `AnalysisResult` JSON file
+- builds a Jira story title from the root cause, leak pattern, and retained size
+- builds a detailed description containing the full analysis details
+- generates acceptance criteria as a separate field
+- sends the story to an MCP-enabled Jira server over HTTP using a best-effort `tools/list` + `tools/call` flow
+- writes a local result artifact named `jira_issue_creation_result.json` by default
+
+### Jira MCP configuration
+
+You can supply configuration through CLI flags or environment variables:
+
+- `HEAPFIXER_JIRA_MCP_URL` - HTTP endpoint for the MCP-enabled Jira server
+- `HEAPFIXER_JIRA_MCP_TOKEN` - optional auth token
+- `HEAPFIXER_JIRA_MCP_AUTH_HEADER` - optional auth header name, defaults to `Authorization`
+- `HEAPFIXER_JIRA_MCP_TOOL_NAME` - optional MCP tool name override when auto-discovery is not enough
+- `HEAPFIXER_JIRA_PROJECT_KEY` - optional Jira project key
+
+### Dry-run example
+
+Use this first if you want to verify the generated title, description, and acceptance criteria without sending an HTTP request:
+
+```powershell
+Set-Location "D:\Project\AutomaticHeapDumpAnalysis\java-heap-analysis\heapfixer"
+.\gradlew.bat runJiraIssueCreator -PanalysisResultFile=".\result.json" -PjiraDryRun=true
+```
+
+### HTTP creation example
+
+```powershell
+Set-Location "D:\Project\AutomaticHeapDumpAnalysis\java-heap-analysis\heapfixer"
+$env:HEAPFIXER_JIRA_MCP_URL = "https://your-jira-mcp-server.example.com/mcp"
+$env:HEAPFIXER_JIRA_MCP_TOKEN = "<token>"
+$env:HEAPFIXER_JIRA_PROJECT_KEY = "OPS"
+.\gradlew.bat runJiraIssueCreator -PanalysisResultFile=".\result.json"
+```
+
+### Optional CLI flags
+
+```text
+JiraIssueCreator <analysis-result-json-file> [--endpoint <mcp-url>] [--output <result-json-file>]
+                 [--token <token-or-token-file>] [--auth-header <header-name>] [--tool <tool-name>]
+                 [--project-key <jira-project-key>] [--dry-run]
+```
+
+Notes:
+
+- the Jira MCP request shape can vary by server, so this implementation tries to discover a suitable tool automatically
+- if your server exposes a non-obvious tool name, set `HEAPFIXER_JIRA_MCP_TOOL_NAME` or use `--tool`
+- this class is standalone only for now and is not wired into the remediation workflow yet
+- if you want to invoke the main class directly instead of the Gradle task, use a classpath that includes the full runtime dependencies
+
