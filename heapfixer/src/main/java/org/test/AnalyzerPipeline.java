@@ -132,10 +132,22 @@ public class AnalyzerPipeline {
         String json = result.toJson();
         Files.writeString(normalizedOutput, json);
         LOG.info("Analysis written to: {}", normalizedOutput);
-        runRemediationDraftWorkflowIfEnabled(result, normalizedReportsDir, normalizedOutput);
         return result;
     }
 
+    // -------------------------------------------------------------------------
+    //  Legacy remediation draft workflow (retained as dead code)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Runs the local remediation draft workflow if enabled by configuration.
+     * <p>
+     * <strong>Note:</strong> This method is retained for backward compatibility
+     * but is no longer called from the pipeline. The preferred approach is to
+     * use {@link org.test.github.CopilotAgentRemediationService} which delegates
+     * fix generation entirely to the Copilot Coding Agent via GitHub Issues.
+     */
+    @SuppressWarnings("unused")
     private void runRemediationDraftWorkflowIfEnabled(AnalysisResult result,
                                                       Path matReportsDir,
                                                       Path outputJsonPath) {

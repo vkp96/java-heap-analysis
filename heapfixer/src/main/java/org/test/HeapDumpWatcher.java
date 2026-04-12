@@ -2,6 +2,7 @@ package org.test;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.test.github.CopilotAgentRemediationService;
 import org.test.strategy.AnalysisStrategyFactory;
 import org.test.strategy.AnalysisStrategyType;
 import org.test.strategy.HeapAnalysisStrategy;
@@ -16,6 +17,10 @@ import java.util.concurrent.TimeUnit;
  * callback when a new heap dump is observed. When configured with an
  * {@link AnalyzerPipeline}, the watcher also kicks off MAT extraction followed by
  * strategy-driven analysis into an {@link AnalysisResult} JSON artifact.
+ *
+ * <p>When a {@link CopilotAgentRemediationService} is configured, the watcher
+ * automatically submits the analysis result as a GitHub Issue assigned to the
+ * Copilot Coding Agent, which opens a fix PR autonomously.
  *
  * Usage:
  *   HeapDumpWatcher watcher = new HeapDumpWatcher("./heapdumps");
@@ -32,13 +37,14 @@ public class HeapDumpWatcher implements AutoCloseable {
     private final Path matToolPath;
     private final Path reportDestDir;
     private final AnalyzerPipeline analyzerPipeline;
+    private final CopilotAgentRemediationService copilotAgentService;
 
     public HeapDumpWatcher(String path) throws IOException {
         this(Paths.get(path));
     }
 
     public HeapDumpWatcher(Path dir) throws IOException {
-        this(dir, null, null, null);
+        this(dir, null, null, null, null);
     }
 
     /**
@@ -48,10 +54,27 @@ public class HeapDumpWatcher implements AutoCloseable {
      * @param matToolPath path to MAT installation or launcher (may be null)
      */
     public HeapDumpWatcher(Path dir, Path reportDestDir, Path matToolPath) throws IOException {
-        this(dir, reportDestDir, matToolPath, null);
+        this(dir, reportDestDir, matToolPath, null, null);
     }
 
     public HeapDumpWatcher(Path dir, Path reportDestDir, Path matToolPath, AnalyzerPipeline analyzerPipeline) throws IOException {
+        this(dir, reportDestDir, matToolPath, analyzerPipeline, null);
+    }
+
+    /**
+     * Full constructor with optional Copilot Coding Agent integration.
+     *
+     * @param dir                 directory to watch for heap dumps
+     * @param reportDestDir       destination directory for MAT reports (may be null)
+     * @param matToolPath         path to MAT installation (may be null)
+     * @param analyzerPipeline    analysis pipeline (may be null)
+     * @param copilotAgentService Copilot agent remediation service (may be null)
+     */
+    public HeapDumpWatcher(Path dir,
+                           Path reportDestDir,
+                           Path matToolPath,
+                           AnalyzerPipeline analyzerPipeline,
+                           CopilotAgentRemediationService copilotAgentService) throws IOException {
         this.dir = dir.toAbsolutePath().normalize();
         LOGGER.info("checking  dir: {}", this.dir);
         if (!Files.exists(this.dir)) {
@@ -64,6 +87,7 @@ public class HeapDumpWatcher implements AutoCloseable {
         this.matToolPath = matToolPath != null ? matToolPath.toAbsolutePath().normalize() : null;
         this.reportDestDir = reportDestDir != null ? reportDestDir.toAbsolutePath().normalize() : null;
         this.analyzerPipeline = analyzerPipeline;
+        this.copilotAgentService = copilotAgentService;
         if (this.reportDestDir != null && !Files.exists(this.reportDestDir)) {
             Files.createDirectories(this.reportDestDir);
         }
@@ -175,8 +199,28 @@ public class HeapDumpWatcher implements AutoCloseable {
                     heapDumpFile.getAbsolutePath(),
                     result.confidence,
                     outputJson.toAbsolutePath());
+
+            // Submit to Copilot Coding Agent if configured
+            submitToCopilotAgent(result);
+
         } catch (Exception e) {
             LOGGER.error("Failed to extract/analyze heap dump for {}: {}", heapDumpFile.getAbsolutePath(), e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Submits the analysis result to the Copilot Coding Agent via GitHub Issue.
+     * No-ops gracefully when the service is not configured or disabled.
+     */
+    private void submitToCopilotAgent(AnalysisResult result) {
+        if (copilotAgentService == null) {
+            LOGGER.debug("CopilotAgentRemediationService not configured. Skipping agent submission.");
+            return;
+        }
+        try {
+            copilotAgentService.submit(result);
+        } catch (Exception e) {
+            LOGGER.error("Copilot agent submission failed: {}", e.getMessage(), e);
         }
     }
 
@@ -210,6 +254,10 @@ public class HeapDumpWatcher implements AutoCloseable {
      * Simple CLI entrypoint so this watcher can be run standalone.
      * Usage: java org.test.HeapDumpWatcher [watchDir] [reportDestDir] [matToolPath] [strategy]
      * If strategy is omitted, {@code ANALYSIS_STRATEGY} is used.
+     *
+     * <p>The Copilot Coding Agent integration is automatically enabled when the
+     * {@code COPILOT_AGENT_ENABLED} environment variable is set to {@code true}
+     * along with {@code GITHUB_OWNER}, {@code GITHUB_REPO}, and a GitHub token.
      */
     public static void main(String[] args) {
         // Accept up to four args: [watchDir] [reportDestDir] [matToolPath] [strategy]
@@ -243,9 +291,17 @@ public class HeapDumpWatcher implements AutoCloseable {
             return;
         }
 
+        // Initialize Copilot Coding Agent integration from environment variables
+        final CopilotAgentRemediationService copilotAgentService = new CopilotAgentRemediationService();
+        if (copilotAgentService.isEnabled()) {
+            LOGGER.info("Copilot Coding Agent remediation is ENABLED. Issues will be created on analysis completion.");
+        } else {
+            LOGGER.info("Copilot Coding Agent remediation is DISABLED. Set COPILOT_AGENT_ENABLED=true to enable.");
+        }
+
         final HeapDumpWatcher watcher;
         try {
-            watcher = new HeapDumpWatcher(watchDir, reportDir, matTool, analyzerPipeline);
+            watcher = new HeapDumpWatcher(watchDir, reportDir, matTool, analyzerPipeline, copilotAgentService);
         } catch (IOException e) {
             LOGGER.error("Failed to create HeapDumpWatcher for '{}': {}", watchDir, e.getMessage(), e);
             return;
